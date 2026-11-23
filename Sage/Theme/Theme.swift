@@ -165,3 +165,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
+
+extension Theme {
+    static let danger = Color(hex: 0xB3261E)
+}

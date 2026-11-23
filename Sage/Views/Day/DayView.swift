@@ -45,12 +45,6 @@ private struct DayContent: View {
             .padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 40).onEnded { v in
-                guard abs(v.translation.width) > abs(v.translation.height) * 2 else { return }
-                if v.translation.width > 0 { app.dayOffset -= 1 } else if app.dayOffset < 0 { app.dayOffset += 1 }
-            }
-        )
     }
 
     private func title(_ date: Date) -> String {
@@ -64,6 +58,8 @@ private struct DayContent: View {
 
 private struct SlotCard: View {
     @Environment(AppState.self) private var app
+    @Environment(HealthKitManager.self) private var health
+    @Environment(\.modelContext) private var context
     var slot: Slot
     var entries: [Entry]
     var catalog: Catalog
@@ -86,30 +82,38 @@ private struct SlotCard: View {
 
             ForEach(entries) { e in
                 Divider().overlay(Theme.border).padding(.horizontal, 16)
-                Button { app.openEdit(e) } label: {
-                    let m = catalog.macros(of: e)
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(catalog.name(of: e)).font(.manrope(15, .semibold)).lineLimit(1)
-                            Text("\(e.time) · \(catalog.amountLabel(of: e))")
-                                .font(.manrope(12, .medium)).foregroundStyle(Theme.muted).lineLimit(1)
+                SwipeToDelete(onDelete: { delete(e) }) {
+                    Button { app.openEdit(e) } label: {
+                        let m = catalog.macros(of: e)
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(catalog.name(of: e)).font(.manrope(15, .semibold)).lineLimit(1)
+                                Text("\(e.time) · \(catalog.amountLabel(of: e))")
+                                    .font(.manrope(12, .medium)).foregroundStyle(Theme.muted).lineLimit(1)
+                            }
+                            Spacer(minLength: 8)
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(m.kcal.kcalString).font(.manrope(15, .bold)).monospacedDigit()
+                                Text("\(m.p.grams) g P").font(.manrope(12, .semibold)).foregroundStyle(Theme.accent)
+                            }
                         }
-                        Spacer(minLength: 8)
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text(m.kcal.kcalString).font(.manrope(15, .bold)).monospacedDigit()
-                            Text("\(m.p.grams) g P").font(.manrope(12, .semibold)).foregroundStyle(Theme.accent)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 58)
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 58)
                 }
                 .buttonStyle(PressableStyle())
-                .accessibilityHint("Edit or delete")
+                .accessibilityHint("Edit, or swipe right to delete")
+                }
             }
         }
         .padding(.bottom, entries.isEmpty ? 0 : 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+    }
+
+    private func delete(_ entry: Entry) {
+        EntryActions.delete(entry, context: context, app: app, health: health)
+        app.showToast("Entry deleted")
     }
 }
