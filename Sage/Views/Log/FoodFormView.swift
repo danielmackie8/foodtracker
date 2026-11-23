@@ -110,7 +110,7 @@ struct FoodFormView: View {
     private var preview: String {
         if isQuick {
             guard k > 0 else { return "Enter calories to continue" }
-            let left = app.goals.kcal - baseTotals.kcal - k
+            let left = app.budget(on: date, health: health) - baseTotals.kcal - k
             return "Afterwards: \(abs(left).kcalString) kcal \(left >= 0 ? "left" : "over") · \((baseTotals.p + Self.num(p)).grams) / \(app.goals.p.grams) g protein"
         }
         return valid ? "You can set the amount on the next screen" : "A name and calories are needed"

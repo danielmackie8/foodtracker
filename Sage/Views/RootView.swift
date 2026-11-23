@@ -47,6 +47,7 @@ struct RootView: View {
     }
 
     private func syncWeightIfNeeded() async {
+        if app.showsWorkouts { await health.loadWorkouts(on: DayKey.todayKey) }
         guard app.healthEnabled, app.readWeight else { return }
         if let last = app.lastSync, Date().timeIntervalSince(last) < 15 * 60 { return }
         await health.syncWeights(into: context)

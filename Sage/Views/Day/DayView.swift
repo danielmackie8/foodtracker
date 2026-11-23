@@ -13,6 +13,7 @@ struct DayView: View {
 
 private struct DayContent: View {
     @Environment(AppState.self) private var app
+    @Environment(HealthKitManager.self) private var health
     let dayKey: String
     @Query private var entries: [Entry]
     @Query private var foods: [Food]
@@ -35,7 +36,8 @@ private struct DayContent: View {
                                     prev: { app.dayOffset -= 1 },
                                     next: { if app.dayOffset < 0 { app.dayOffset += 1 } })
                 }
-                SummaryCard(title: "Summary", totals: total, goals: app.goals)
+                SummaryCard(title: "Summary", totals: total, goals: app.goals,
+                            bonus: app.workoutBonus(on: dayKey, health: health))
                 ForEach(Slot.allCases) { slot in
                     SlotCard(slot: slot, entries: entries.filter { $0.slot == slot }, catalog: catalog)
                 }
@@ -45,6 +47,9 @@ private struct DayContent: View {
             .padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
+        .task(id: dayKey) {
+            if app.showsWorkouts { await health.loadWorkouts(on: dayKey) }
+        }
     }
 
     private func title(_ date: Date) -> String {

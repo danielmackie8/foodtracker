@@ -18,6 +18,11 @@ final class HealthKitManager {
 
     private let bodyMass = HKQuantityType(.bodyMass)
     private let stepCount = HKQuantityType(.stepCount)
+    private let activeEnergy = HKQuantityType(.activeEnergyBurned)
+    private let distanceTypes = [HKQuantityType(.distanceWalkingRunning), HKQuantityType(.distanceCycling)]
+
+    /// Workouts per day (YYYY-MM-DD), filled by `loadWorkouts(on:)`.
+    var workoutsByDay: [String: [WorkoutSummary]] = [:]
     private let nutrition: [(HKQuantityType, String, KeyPath<Macros, Double>, HKUnit)] = [
         (HKQuantityType(.dietaryEnergyConsumed), "kcal", \.kcal, .kilocalorie()),
         (HKQuantityType(.dietaryProtein), "p", \.p, .gram()),
@@ -29,7 +34,8 @@ final class HealthKitManager {
     func requestAuthorization() async throws {
         guard isAvailable else { return }
         let share = Set(nutrition.map { $0.0 as HKSampleType })
-        let read: Set<HKObjectType> = [bodyMass, stepCount]
+        var read: Set<HKObjectType> = [bodyMass, stepCount, activeEnergy, HKObjectType.workoutType()]
+        distanceTypes.forEach { read.insert($0) }
         try await store.requestAuthorization(toShare: share, read: read)
     }
 
@@ -71,6 +77,37 @@ final class HealthKitManager {
             lastError = nil
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    // MARK: Workouts
+
+    /// Total calories burnt in workouts on a day, from the last load (0 if not loaded).
+    func burnt(on day: String) -> Double {
+        workoutsByDay[day]?.reduce(0) { $0 + $1.kcal } ?? 0
+    }
+
+    /// Reads the workouts that started on `day` (YYYY-MM-DD).
+    func loadWorkouts(on day: String) async {
+        guard isAvailable else { return }
+        let start = DayKey.date(day)
+        let end = DayKey.add(1, to: start)
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.workout(HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate))],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        guard let workouts = try? await descriptor.result(for: store) else { return }
+        workoutsByDay[day] = workouts.map { w in
+            let kcal = w.statistics(for: activeEnergy)?.sumQuantity()?.doubleValue(for: .kilocalorie())
+                ?? w.totalEnergyBurned?.doubleValue(for: .kilocalorie())
+                ?? 0
+            let km = distanceTypes.lazy
+                .compactMap { w.statistics(for: $0)?.sumQuantity()?.doubleValue(for: .meterUnit(with: .kilo)) }
+                .first
+            let (name, icon) = WorkoutSummary.describe(w.workoutActivityType,
+                                                       indoor: w.metadata?[HKMetadataKeyIndoorWorkout] as? Bool)
+            return WorkoutSummary(id: w.uuid, name: name, icon: icon, start: w.startDate,
+                                  duration: w.duration, kcal: kcal, distanceKm: km)
         }
     }
 

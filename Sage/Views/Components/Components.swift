@@ -69,17 +69,30 @@ struct SummaryCard: View {
     var title: String
     var totals: Macros
     var goals: Goals
+    /// Workout calories added to the day's budget.
+    var bonus: Double = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title).font(.manrope(17, .bold))
                 Spacer()
-                Text("\(totals.kcal.kcalString) of \(goals.kcal.kcalString) kcal")
+                Text("\(totals.kcal.kcalString) of \((goals.kcal + bonus).kcalString) kcal")
                     .font(.manrope(13, .medium)).foregroundStyle(Theme.muted)
             }
             HStack(spacing: 18) {
-                CalorieRing(eaten: totals.kcal, goal: goals.kcal)
+                VStack(spacing: 8) {
+                    CalorieRing(eaten: totals.kcal, goal: goals.kcal + bonus)
+                    if bonus >= 1 {
+                        Text("+\(bonus.kcalString) workouts")
+                            .font(.manrope(12, .bold))
+                            .foregroundStyle(Theme.accent)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Theme.accent.opacity(0.1), in: Capsule())
+                            .accessibilityLabel("Budget includes \(bonus.kcalString) kcal from workouts")
+                    }
+                }
                 VStack(spacing: 14) {
                     MacroBar(name: "Protein", value: totals.p, goal: goals.p, color: Theme.accent)
                     MacroBar(name: "Carbs", value: totals.c, goal: goals.c, color: Theme.carbs)

@@ -100,7 +100,7 @@ struct AmountView: View {
     var body: some View {
         let m = macros
         let after = baseTotals + m
-        let left = app.goals.kcal - after.kcal
+        let left = app.budget(on: date, health: health) - after.kcal
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {

@@ -48,6 +48,8 @@ struct ProfileView: View {
                         Divider().overlay(Theme.border).padding(.leading, 16)
                         PermissionRow(name: "Steps", mode: "Read", isOn: $app.readSteps)
                         Divider().overlay(Theme.border).padding(.leading, 16)
+                        PermissionRow(name: "Workouts", mode: "Read", isOn: $app.readWorkouts)
+                        Divider().overlay(Theme.border).padding(.leading, 16)
                         PermissionRow(name: "Dietary energy, protein, carbs, fat", mode: "Write", isOn: $app.writeNutrition)
                         Divider().overlay(Theme.border)
                         Button {
@@ -70,6 +72,16 @@ struct ProfileView: View {
                     GoalRow(name: "Protein", value: $app.goals.p, step: 5, unit: " g")
                     GoalRow(name: "Carbs", value: $app.goals.c, step: 5, unit: " g")
                     GoalRow(name: "Fat", value: $app.goals.f, step: 5, unit: " g")
+                    Divider().overlay(Theme.border).padding(.vertical, 6)
+                    Toggle(isOn: $app.addWorkoutCalories) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Add workout calories").font(.manrope(15, .semibold))
+                            Text("Calories burnt in workouts raise that day's budget")
+                                .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+                        }
+                    }
+                    .tint(Theme.switchOn)
+                    .frame(minHeight: 52)
                 }
                 .card()
 

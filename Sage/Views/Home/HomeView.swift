@@ -3,6 +3,7 @@ import SwiftData
 
 struct HomeView: View {
     @Environment(AppState.self) private var app
+    @Environment(HealthKitManager.self) private var health
     @Query private var entries: [Entry]
     @Query private var foods: [Food]
     @Query private var meals: [Meal]
@@ -19,7 +20,9 @@ struct HomeView: View {
                             .buttonStyle(CircleIconButtonStyle())
                             .accessibilityLabel("Profile")
                     }
-                    SummaryCard(title: "Today", totals: ledger.totals(DayKey.todayKey).macros, goals: app.goals)
+                    SummaryCard(title: "Today", totals: ledger.totals(DayKey.todayKey).macros, goals: app.goals,
+                                bonus: app.workoutBonus(on: DayKey.todayKey, health: health))
+                    if app.showsWorkouts { WorkoutsCard() }
                     WeightCard(weights: weights)
                     Last7DaysCard(ledger: ledger, goals: app.goals)
                 }

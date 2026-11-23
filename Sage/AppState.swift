@@ -36,6 +36,9 @@ final class AppState {
     var healthEnabled: Bool { didSet { defaults.set(healthEnabled, forKey: "healthEnabled") } }
     var readWeight: Bool { didSet { defaults.set(readWeight, forKey: "readWeight") } }
     var readSteps: Bool { didSet { defaults.set(readSteps, forKey: "readSteps") } }
+    var readWorkouts: Bool { didSet { defaults.set(readWorkouts, forKey: "readWorkouts") } }
+    /// Calories burnt in workouts raise that day's calorie budget.
+    var addWorkoutCalories: Bool { didSet { defaults.set(addWorkoutCalories, forKey: "addWorkoutCalories") } }
     var writeNutrition: Bool { didSet { defaults.set(writeNutrition, forKey: "writeNutrition") } }
     var lastSync: Date? { didSet { defaults.set(lastSync, forKey: "lastSync") } }
     var weightRange: WeightRange { didSet { defaults.set(weightRange.rawValue, forKey: "weightRange") } }
@@ -48,6 +51,8 @@ final class AppState {
         healthEnabled = d.bool(forKey: "healthEnabled")
         readWeight = d.object(forKey: "readWeight") as? Bool ?? true
         readSteps = d.object(forKey: "readSteps") as? Bool ?? true
+        readWorkouts = d.object(forKey: "readWorkouts") as? Bool ?? true
+        addWorkoutCalories = d.object(forKey: "addWorkoutCalories") as? Bool ?? true
         writeNutrition = d.object(forKey: "writeNutrition") as? Bool ?? true
         lastSync = d.object(forKey: "lastSync") as? Date
         weightRange = WeightRange(rawValue: d.string(forKey: "weightRange") ?? "") ?? .threeMonths
@@ -55,6 +60,20 @@ final class AppState {
 
     private func save<T: Encodable>(_ value: T, _ key: String) {
         if let data = try? JSONEncoder().encode(value) { defaults.set(data, forKey: key) }
+    }
+
+    // MARK: Calorie budget
+
+    var showsWorkouts: Bool { healthEnabled && readWorkouts }
+
+    /// Workout calories added to a day's budget (0 when that's switched off).
+    func workoutBonus(on day: String, health: HealthKitManager) -> Double {
+        showsWorkouts && addWorkoutCalories ? health.burnt(on: day) : 0
+    }
+
+    /// The calorie goal plus any workout bonus for that day.
+    func budget(on day: String, health: HealthKitManager) -> Double {
+        goals.kcal + workoutBonus(on: day, health: health)
     }
 
     // MARK: Navigation helpers
