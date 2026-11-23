@@ -101,7 +101,7 @@ private struct SlotCard: View {
                         .frame(minHeight: 58)
                 }
                 .buttonStyle(PressableStyle())
-                .accessibilityHint("Edit, or swipe right to delete")
+                .accessibilityHint("Edit, or swipe left to delete")
                 }
             }
         }

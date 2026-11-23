@@ -1,44 +1,45 @@
 import SwiftUI
 
-/// Swipe a row to the right to reveal a red Delete button on its left.
+/// Swipe a row to the left to reveal a red Delete button on its right.
 /// A long swipe (past about half the row) deletes straight away.
 /// Tapping the row while it's open closes it.
 struct SwipeToDelete<Content: View>: View {
     var onDelete: () -> Void
     @ViewBuilder var content: Content
 
-    @State private var offset: CGFloat = 0
-    @State private var startOffset: CGFloat = 0
+    /// How far the row has slid left (always ≥ 0).
+    @State private var reveal: CGFloat = 0
+    @State private var startReveal: CGFloat = 0
     @State private var horizontal: Bool?
     @State private var rowWidth: CGFloat = 320
 
-    private let revealWidth: CGFloat = 92
-    private var fullSwipe: CGFloat { max(revealWidth + 60, rowWidth * 0.55) }
-    private var pastFullSwipe: Bool { offset > fullSwipe }
+    private let buttonWidth: CGFloat = 92
+    private var fullSwipe: CGFloat { max(buttonWidth + 60, rowWidth * 0.55) }
+    private var pastFullSwipe: Bool { reveal > fullSwipe }
 
     var body: some View {
         content
             .background(Theme.card)
-            .offset(x: offset)
+            .offset(x: -reveal)
             .overlay {
                 // While open, a tap on the row closes it instead of opening the entry.
-                if offset > 0 {
+                if reveal > 0 {
                     Color.clear
                         .contentShape(Rectangle())
-                        .offset(x: offset)
+                        .offset(x: -reveal)
                         .onTapGesture { close() }
                 }
             }
-            .background(alignment: .leading) {
-                // Delete button, revealed behind the row as it slides right.
+            .background(alignment: .trailing) {
+                // Delete button, revealed behind the row as it slides left.
                 Button(role: .destructive) { commitDelete() } label: {
                     VStack(spacing: 3) {
                         Image(systemName: "trash.fill").font(.system(size: 17, weight: .semibold))
                         Text("Delete").font(.manrope(12, .bold))
                     }
                     .foregroundStyle(.white)
-                    .opacity(offset > 30 ? 1 : 0)
-                    .frame(width: max(offset, 0))
+                    .opacity(reveal > 30 ? 1 : 0)
+                    .frame(width: reveal)
                     .frame(maxHeight: .infinity)
                     .background(Theme.danger)
                 }
@@ -62,21 +63,19 @@ struct SwipeToDelete<Content: View>: View {
                 // Decide once per drag whether it's a sideways swipe or a scroll.
                 if horizontal == nil {
                     horizontal = abs(v.translation.width) > abs(v.translation.height) * 1.2
-                    startOffset = offset
+                    startReveal = reveal
                 }
                 guard horizontal == true else { return }
-                let next = startOffset + v.translation.width
-                // Resist slightly beyond the full-swipe point; never past the left edge.
-                offset = min(max(0, next), rowWidth)
+                reveal = min(max(0, startReveal - v.translation.width), rowWidth)
             }
             .onEnded { v in
                 defer { horizontal = nil }
                 guard horizontal == true else { return }
-                let projected = startOffset + v.predictedEndTranslation.width
-                if offset > fullSwipe || projected > rowWidth * 0.9 {
+                let projected = startReveal - v.predictedEndTranslation.width
+                if reveal > fullSwipe || projected > rowWidth * 0.9 {
                     commitDelete()
-                } else if offset > revealWidth / 2 || projected > revealWidth {
-                    withAnimation(.spring(duration: 0.3)) { offset = revealWidth }
+                } else if reveal > buttonWidth / 2 || projected > buttonWidth {
+                    withAnimation(.spring(duration: 0.3)) { reveal = buttonWidth }
                 } else {
                     close()
                 }
@@ -84,11 +83,11 @@ struct SwipeToDelete<Content: View>: View {
     }
 
     private func close() {
-        withAnimation(.spring(duration: 0.3)) { offset = 0 }
+        withAnimation(.spring(duration: 0.3)) { reveal = 0 }
     }
 
     private func commitDelete() {
-        withAnimation(.easeOut(duration: 0.2)) { offset = rowWidth }
+        withAnimation(.easeOut(duration: 0.2)) { reveal = rowWidth }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(180))
             withAnimation(.easeInOut(duration: 0.25)) { onDelete() }
