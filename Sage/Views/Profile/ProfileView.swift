@@ -72,6 +72,7 @@ struct ProfileView: View {
                     GoalRow(name: "Protein", value: $app.goals.p, step: 5, unit: " g")
                     GoalRow(name: "Carbs", value: $app.goals.c, step: 5, unit: " g")
                     GoalRow(name: "Fat", value: $app.goals.f, step: 5, unit: " g")
+                    GoalRow(name: "Steps", value: $app.stepGoal, step: 500, unit: "")
                     Divider().overlay(Theme.border).padding(.vertical, 6)
                     Toggle(isOn: $app.addWorkoutCalories) {
                         VStack(alignment: .leading, spacing: 2) {

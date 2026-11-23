@@ -76,7 +76,7 @@ private struct WeekContent: View {
                     StatTile(label: "Weight", value: weightChange, sub: weightSub, subColor: Theme.accent)
                 }
 
-                if app.showsWorkouts { WeekWorkoutsCard(monday: monday) }
+                if app.healthEnabled { WeekActivityCard(monday: monday, steps: steps) }
 
                 CaloriesChartCard(days: days.map { (date: $0.date, totals: $0.totals, future: $0.future, isToday: $0.isToday) }, goal: goals.kcal)
 

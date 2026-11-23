@@ -37,6 +37,7 @@ final class AppState {
     var readWeight: Bool { didSet { defaults.set(readWeight, forKey: "readWeight") } }
     var readSteps: Bool { didSet { defaults.set(readSteps, forKey: "readSteps") } }
     var readWorkouts: Bool { didSet { defaults.set(readWorkouts, forKey: "readWorkouts") } }
+    var stepGoal: Double { didSet { defaults.set(stepGoal, forKey: "stepGoal") } }
     /// Calories burnt in workouts raise that day's calorie budget.
     var addWorkoutCalories: Bool { didSet { defaults.set(addWorkoutCalories, forKey: "addWorkoutCalories") } }
     var writeNutrition: Bool { didSet { defaults.set(writeNutrition, forKey: "writeNutrition") } }
@@ -52,6 +53,7 @@ final class AppState {
         readWeight = d.object(forKey: "readWeight") as? Bool ?? true
         readSteps = d.object(forKey: "readSteps") as? Bool ?? true
         readWorkouts = d.object(forKey: "readWorkouts") as? Bool ?? true
+        stepGoal = d.object(forKey: "stepGoal") as? Double ?? 10_000
         addWorkoutCalories = d.object(forKey: "addWorkoutCalories") as? Bool ?? true
         writeNutrition = d.object(forKey: "writeNutrition") as? Bool ?? true
         lastSync = d.object(forKey: "lastSync") as? Date
