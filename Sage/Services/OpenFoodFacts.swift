@@ -34,53 +34,6 @@ struct OFFProduct: Codable, Hashable, Identifiable {
     }
 }
 
-// MARK: - Bundled UK catalogue (off-uk.json)
-
-/// 671 UK products shipped with the app, searchable offline.
-final class BundledProducts {
-    static let shared = BundledProducts()
-
-    let products: [OFFProduct]
-    private let haystack: [String]
-
-    private init() {
-        var list: [OFFProduct] = []
-        if let url = Bundle.main.url(forResource: "off-uk", withExtension: "json"),
-           let data = try? Data(contentsOf: url),
-           let rows = try? JSONSerialization.jsonObject(with: data) as? [[Any]] {
-            // [barcode, name, brand, pack, kcal/100g, protein, carbs, fat, servingGrams]
-            func num(_ v: Any) -> Double { (v as? NSNumber)?.doubleValue ?? Double(v as? String ?? "") ?? 0 }
-            for r in rows where r.count >= 9 {
-                list.append(OFFProduct(barcode: r[0] as? String ?? "", name: r[1] as? String ?? "",
-                                       brand: r[2] as? String ?? "", pack: r[3] as? String ?? "",
-                                       kcal: num(r[4]), p: num(r[5]), c: num(r[6]), f: num(r[7]), servingGrams: num(r[8])))
-            }
-        }
-        products = list
-        haystack = list.map { ($0.name + " " + $0.brand).lowercased() }
-    }
-
-    func search(_ query: String, limit: Int = 30) -> [OFFProduct] {
-        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return [] }
-        if q.allSatisfy(\.isNumber), (8...14).contains(q.count) {
-            return product(barcode: q).map { [$0] } ?? []
-        }
-        let tokens = q.split(separator: " ").map(String.init)
-        var out: [OFFProduct] = []
-        for (i, h) in haystack.enumerated() where tokens.allSatisfy({ h.contains($0) }) {
-            out.append(products[i])
-            if out.count >= limit { break }
-        }
-        return out
-    }
-
-    func product(barcode: String) -> OFFProduct? {
-        let n = OFFProduct.normalise(barcode)
-        return products.first { OFFProduct.normalise($0.barcode) == n }
-    }
-}
-
 // MARK: - Live API
 
 enum OFFError: LocalizedError {
@@ -94,7 +47,8 @@ enum OFFError: LocalizedError {
     }
 }
 
-/// Live Open Food Facts lookups with a disk cache and a client-side rate limit
+/// Live Open Food Facts lookups for anything not in the bundled database,
+/// with a disk cache and a client-side rate limit
 /// (search is limited to about 10 requests a minute).
 actor OpenFoodFactsClient {
     static let shared = OpenFoodFactsClient()
@@ -125,7 +79,7 @@ actor OpenFoodFactsClient {
     /// Bundled catalogue → disk cache → network.
     func product(barcode: String) async throws -> OFFProduct {
         let code = barcode.filter(\.isNumber)
-        if let p = BundledProducts.shared.product(barcode: code) { return p }
+        if let p = await ProductDatabase.shared.product(barcode: code) { return p }
         if let p = productCache[OFFProduct.normalise(code)] { return p }
 
         var comps = URLComponents(string: "https://world.openfoodfacts.org/api/v2/product/\(code).json")!

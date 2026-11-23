@@ -39,6 +39,7 @@ struct RootView: View {
                 .presentationCornerRadius(28)
                 .presentationBackground(Theme.background)
         }
+        .task { _ = await ProductDatabase.shared.prepare() }
         .task { await syncWeightIfNeeded() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await syncWeightIfNeeded() } }

@@ -111,6 +111,8 @@ private struct LogListView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var tab: ListTab = .usuals
+    @State private var local: [OFFProduct] = []
+    @State private var localQuery = ""
     @State private var remote: [OFFProduct] = []
     @State private var remoteQuery = ""
     @State private var remoteState: RemoteState = .idle
@@ -156,6 +158,17 @@ private struct LogListView: View {
         }
         .background(Theme.background)
         .toolbar(.hidden, for: .navigationBar)
+        .task(id: q) {
+            // Search the bundled database as you type, slightly debounced.
+            let current = q
+            guard !current.isEmpty else { local = []; localQuery = ""; return }
+            try? await Task.sleep(for: .milliseconds(120))
+            guard !Task.isCancelled else { return }
+            let found = await ProductDatabase.shared.search(current)
+            guard !Task.isCancelled else { return }
+            local = found
+            localQuery = current
+        }
         .fullScreenCover(isPresented: $scanning) {
             BarcodeScannerSheet { code in
                 scanning = false
@@ -239,7 +252,7 @@ private struct LogListView: View {
             let matchedFoods = sortedFoods.filter { ($0.name + " " + ($0.brand ?? "")).lowercased().contains(q) || $0.barcode == q }
             let names = Set(matchedFoods.map(\.name) + matchedMeals.map(\.name))
             let savedCodes = Set(matchedFoods.compactMap(\.barcode))
-            let bundled = BundledProducts.shared.search(q).filter { !names.contains($0.name) && !savedCodes.contains($0.barcode) }
+            let bundled = (localQuery == q ? local : []).filter { !names.contains($0.name) && !savedCodes.contains($0.barcode) }
             let bundledCodes = Set(bundled.map(\.barcode))
             let live = remoteQuery == q ? remote.filter { !bundledCodes.contains($0.barcode) && !savedCodes.contains($0.barcode) } : []
 
@@ -280,7 +293,7 @@ private struct LogListView: View {
                 Button {
                     Task { await submitSearch() }
                 } label: {
-                    Label(isBarcode ? "Look up barcode \(q)" : "Search all UK products for “\(query.trimmingCharacters(in: .whitespaces))”",
+                    Label(isBarcode ? "Look up barcode \(q) online" : "Search Open Food Facts online for “\(query.trimmingCharacters(in: .whitespaces))”",
                           systemImage: "globe")
                         .font(.manrope(14, .bold))
                         .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
@@ -318,7 +331,7 @@ private struct LogListView: View {
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.top, 6)
-            Text("\(BundledProducts.shared.products.count) UK products available offline · more from Open Food Facts")
+            Text("\((ProductDatabase.meta?.count ?? 0).formatted()) UK products available offline · newer ones from Open Food Facts online")
                 .font(.manrope(12, .medium)).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
                 .padding(.top, 4)
         }

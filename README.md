@@ -46,22 +46,25 @@ Sage/
 │   └── SeedData.swift         Built-in foods and usual meals
 ├── Services/
 │   ├── HealthKitManager.swift Reads body mass; writes energy/protein/carbs/fat per entry
-│   └── OpenFoodFacts.swift    Bundled UK catalogue (off-uk.json), live barcode + search API, disk cache
+│   ├── ProductDatabase.swift  Bundled UK product database (SQLite), offline search + barcode lookup
+│   └── OpenFoodFacts.swift    Live barcode + search API for anything newer, disk cache
 ├── Theme/Theme.swift          Sage Graphite colours, Manrope fonts, card/button styles
 ├── Views/                     Home, Weight, Day, Week, Profile, Log sheet, shared components
-└── Resources/                 off-uk.json (671 UK products), Manrope (OFL)
+└── Resources/                 products.sqlite.zlib (UK products), Manrope (OFL)
+scripts/update_products.py     Rebuilds the product database from the Open Food Facts export
 ```
 
 - **Storage:** everything is kept on the device with SwiftData. Nothing goes to a server.
 - **Apple Health, weight:** the app syncs automatically when it opens (at most every 15 minutes), and whenever you tap **Sync**. It reads the last year of body-mass samples. A reading you delete in Health also disappears from the app.
 - **Apple Health, nutrition:** each entry is written as four samples (energy, protein, carbs and fat) that share a sync identifier based on the entry's ID. When you edit an entry, its samples are replaced. When you delete it, they're removed. You can turn this off in Profile.
 - **Open Food Facts:**
-  - The 671 bundled UK products can be searched offline as you type.
-  - Pressing *Search* (or tapping "Search all UK products") queries the live API. A client-side limit keeps this under 10 searches a minute, and results are cached.
-  - Barcodes are looked up in this order: bundled data, then the disk cache, then `GET /api/v2/product/{code}.json`.
-  - A product you log is saved as a Food, so it keeps working offline.
+  - Every UK product in Open Food Facts with complete nutrition ships inside the app as a compressed SQLite database. It's unpacked on first launch and searched offline as you type. Words can come in any order, and matching ignores case and accents. The most-scanned products come first.
+  - A scanned barcode is looked up in the bundled database first, then the disk cache, then live through `GET /api/v2/product/{code}.json`.
+  - For products added after the database was built, pressing *Search* (or tapping "Search Open Food Facts online") queries the live API. A client-side limit keeps this under 10 searches a minute, and results are cached.
+  - A product you log is saved as a Food, so it keeps working even if the database changes.
   - Every product shows its barcode and an ODbL credit.
   - The User-Agent is `SageFoodTracker/1.0`. If you'd like Open Food Facts to be able to contact you, add an email address to it in `OpenFoodFacts.swift`.
+- **Refreshing the products:** run `python3 scripts/update_products.py` from the repo root. It streams the latest Open Food Facts export (about 1.5 GB) and rebuilds `Sage/Resources/products.sqlite.zlib`. Products are kept if they're sold in the UK and have a barcode, a name and complete per-100 g calories, protein, carbs and fat. Rows whose calories don't roughly match their macros are dropped. The original 671-product list in `scripts/off-uk.json` is always merged in.
 - **Barcode scanning:** uses VisionKit `DataScannerViewController` and reads EAN-13, EAN-8, UPC-E, Code 128 and ITF-14.
 
 ## Notes
