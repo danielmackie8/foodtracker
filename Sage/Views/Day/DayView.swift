@@ -66,50 +66,73 @@ private struct SlotCard: View {
 
     var body: some View {
         let sub = entries.reduce(into: Macros()) { $0 += catalog.macros(of: $1) }
-        VStack(spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(slot.rawValue).font(.manrope(17, .bold))
-                    Text(entries.isEmpty ? "Nothing logged" : "\(sub.kcal.kcalString) kcal · \(sub.p.grams) g protein")
-                        .font(.manrope(13, .medium)).foregroundStyle(Theme.muted)
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            // Section label above the card: meal name and its totals.
+            HStack(alignment: .firstTextBaseline) {
+                Text(slot.rawValue.uppercased())
+                    .font(.manrope(13, .heavy))
+                    .tracking(1)
+                    .foregroundStyle(Theme.muted)
                 Spacer()
-                Button { app.openLog(slot: slot) } label: { Image(systemName: "plus") }
-                    .buttonStyle(CircleIconButtonStyle())
-                    .accessibilityLabel("Add to \(slot.rawValue)")
+                if !entries.isEmpty {
+                    Text("\(sub.kcal.kcalString) kcal · \(sub.p.grams) g P")
+                        .font(.manrope(13, .semibold))
+                        .foregroundStyle(Theme.muted)
+                        .monospacedDigit()
+                }
             }
-            .padding(16)
+            .padding(.horizontal, 4)
+            .padding(.top, 6)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
 
-            ForEach(entries) { e in
-                Divider().overlay(Theme.border).padding(.horizontal, 16)
-                SwipeToDelete(onDelete: { delete(e) }) {
-                    Button { app.openEdit(e) } label: {
-                        let m = catalog.macros(of: e)
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(catalog.name(of: e)).font(.manrope(15, .semibold)).lineLimit(1)
-                                Text("\(e.time) · \(catalog.amountLabel(of: e))")
-                                    .font(.manrope(12, .medium)).foregroundStyle(Theme.muted).lineLimit(1)
+            // The card holds only food, then an "Add to …" row.
+            VStack(spacing: 0) {
+                ForEach(entries) { e in
+                    SwipeToDelete(onDelete: { delete(e) }) {
+                        Button { app.openEdit(e) } label: {
+                            let m = catalog.macros(of: e)
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(catalog.name(of: e)).font(.manrope(15, .semibold)).lineLimit(1)
+                                    Text("\(e.time) · \(catalog.amountLabel(of: e))")
+                                        .font(.manrope(12, .medium)).foregroundStyle(Theme.muted).lineLimit(1)
+                                }
+                                Spacer(minLength: 8)
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(m.kcal.kcalString).font(.manrope(15, .bold)).monospacedDigit()
+                                    Text("\(m.p.grams) g P").font(.manrope(12, .semibold)).foregroundStyle(Theme.accent)
+                                }
                             }
-                            Spacer(minLength: 8)
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text(m.kcal.kcalString).font(.manrope(15, .bold)).monospacedDigit()
-                                Text("\(m.p.grams) g P").font(.manrope(12, .semibold)).foregroundStyle(Theme.accent)
-                            }
+                            .padding(.horizontal, 16)
+                            .frame(minHeight: 60)
                         }
-                        .padding(.horizontal, 16)
-                        .frame(minHeight: 58)
+                        .buttonStyle(PressableStyle())
+                        .accessibilityHint("Edit, or swipe left to delete")
+                    }
+                    Divider().overlay(Theme.border).padding(.horizontal, 16)
+                }
+
+                Button { app.openLog(slot: slot) } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13, weight: .bold))
+                            .frame(width: 26, height: 26)
+                            .background(Theme.accent.opacity(0.1), in: Circle())
+                        Text("Add to \(slot.rawValue)").font(.manrope(15, .bold))
+                        Spacer()
+                    }
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 52)
                 }
                 .buttonStyle(PressableStyle())
-                .accessibilityHint("Edit, or swipe left to delete")
-                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
         }
-        .padding(.bottom, entries.isEmpty ? 0 : 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
     }
 
     private func delete(_ entry: Entry) {
