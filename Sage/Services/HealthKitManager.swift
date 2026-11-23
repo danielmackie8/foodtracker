@@ -89,15 +89,23 @@ final class HealthKitManager {
 
     /// Reads the workouts that started on `day` (YYYY-MM-DD).
     func loadWorkouts(on day: String) async {
-        guard isAvailable else { return }
-        let start = DayKey.date(day)
-        let end = DayKey.add(1, to: start)
+        await loadWorkouts(from: DayKey.date(day), days: 1)
+    }
+
+    /// Reads workouts for `days` days starting at `start` in one query, filling every day
+    /// in the range (an empty list means no workouts that day).
+    func loadWorkouts(from start: Date, days: Int) async {
+        guard isAvailable, days > 0 else { return }
+        let first = DayKey.cal.startOfDay(for: start)
+        let end = DayKey.add(days, to: first)
         let descriptor = HKSampleQueryDescriptor(
-            predicates: [.workout(HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate))],
+            predicates: [.workout(HKQuery.predicateForSamples(withStart: first, end: end, options: .strictStartDate))],
             sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
         )
         guard let workouts = try? await descriptor.result(for: store) else { return }
-        workoutsByDay[day] = workouts.map { w in
+        var byDay: [String: [WorkoutSummary]] = [:]
+        for i in 0..<days { byDay[DayKey.key(DayKey.add(i, to: first))] = [] }
+        for w in workouts {
             let kcal = w.statistics(for: activeEnergy)?.sumQuantity()?.doubleValue(for: .kilocalorie())
                 ?? w.totalEnergyBurned?.doubleValue(for: .kilocalorie())
                 ?? 0
@@ -106,9 +114,11 @@ final class HealthKitManager {
                 .first
             let (name, icon) = WorkoutSummary.describe(w.workoutActivityType,
                                                        indoor: w.metadata?[HKMetadataKeyIndoorWorkout] as? Bool)
-            return WorkoutSummary(id: w.uuid, name: name, icon: icon, start: w.startDate,
-                                  duration: w.duration, kcal: kcal, distanceKm: km)
+            byDay[DayKey.key(w.startDate), default: []].append(
+                WorkoutSummary(id: w.uuid, name: name, icon: icon, start: w.startDate,
+                               duration: w.duration, kcal: kcal, distanceKm: km))
         }
+        workoutsByDay.merge(byDay) { _, new in new }
     }
 
     // MARK: Steps
