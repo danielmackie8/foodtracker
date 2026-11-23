@@ -35,6 +35,7 @@ final class AppState {
     var goals: Goals { didSet { save(goals, "goals") } }
     var healthEnabled: Bool { didSet { defaults.set(healthEnabled, forKey: "healthEnabled") } }
     var readWeight: Bool { didSet { defaults.set(readWeight, forKey: "readWeight") } }
+    var readSteps: Bool { didSet { defaults.set(readSteps, forKey: "readSteps") } }
     var writeNutrition: Bool { didSet { defaults.set(writeNutrition, forKey: "writeNutrition") } }
     var lastSync: Date? { didSet { defaults.set(lastSync, forKey: "lastSync") } }
     var weightRange: WeightRange { didSet { defaults.set(weightRange.rawValue, forKey: "weightRange") } }
@@ -46,6 +47,7 @@ final class AppState {
         goals = (d.data(forKey: "goals")).flatMap { try? JSONDecoder().decode(Goals.self, from: $0) } ?? Goals()
         healthEnabled = d.bool(forKey: "healthEnabled")
         readWeight = d.object(forKey: "readWeight") as? Bool ?? true
+        readSteps = d.object(forKey: "readSteps") as? Bool ?? true
         writeNutrition = d.object(forKey: "writeNutrition") as? Bool ?? true
         lastSync = d.object(forKey: "lastSync") as? Date
         weightRange = WeightRange(rawValue: d.string(forKey: "weightRange") ?? "") ?? .threeMonths

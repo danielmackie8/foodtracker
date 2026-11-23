@@ -12,6 +12,8 @@ struct WeekView: View {
 
 private struct WeekContent: View {
     @Environment(AppState.self) private var app
+    @Environment(HealthKitManager.self) private var health
+    @State private var steps: [String: Double] = [:]
     let monday: Date
     @Query private var allEntries: [Entry]
     @Query private var foods: [Food]
@@ -47,7 +49,10 @@ private struct WeekContent: View {
         let logged = days.filter { !$0.future && $0.totals.count > 0 }
         let n = Double(max(logged.count, 1))
         let avg = logged.reduce(into: Macros()) { $0 += $1.totals.macros } * (1 / n)
-        let onTarget = logged.filter { $0.totals.macros.kcal <= goals.kcal }.count
+        // Steps: average over the week's days so far that have step data.
+        let elapsedKeys = days.filter { !$0.future }.map(\.key)
+        let stepDays = elapsedKeys.compactMap { steps[$0] }
+        let avgSteps = stepDays.isEmpty ? nil : stepDays.reduce(0, +) / Double(stepDays.count)
         let proteinHits = logged.filter { $0.totals.macros.p >= goals.p }.count
 
         ScrollView {
@@ -64,7 +69,10 @@ private struct WeekContent: View {
                              value: logged.isEmpty ? "—" : avg.kcal.kcalString,
                              sub: logged.isEmpty ? "No data" : "\(diff >= 0 ? "+" : "−")\(abs(diff).kcalString) a day vs \(goals.kcal.kcalString)")
                     StatTile(label: "Avg protein", value: logged.isEmpty ? "—" : "\(avg.p.grams) g", sub: "target \(goals.p.grams) g")
-                    StatTile(label: "On calorie target", value: "\(onTarget) / \(logged.count)", sub: "days within budget")
+                    StatTile(label: "Avg steps",
+                             value: avgSteps.map { Int($0.rounded()).formatted() } ?? "—",
+                             sub: stepsSub(days: stepDays.count),
+                             subColor: Theme.accent)
                     StatTile(label: "Weight", value: weightChange, sub: weightSub, subColor: Theme.accent)
                 }
 
@@ -79,6 +87,21 @@ private struct WeekContent: View {
             .padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
+        .task(id: app.healthEnabled && app.readSteps) { await loadSteps() }
+    }
+
+    private func stepsSub(days: Int) -> String {
+        if !app.healthEnabled || !app.readSteps { return "Connect Apple Health" }
+        if days == 0 { return "from Apple Health" }
+        return "a day · \(days) day\(days == 1 ? "" : "s")"
+    }
+
+    private func loadSteps() async {
+        guard app.healthEnabled, app.readSteps else { steps = [:]; return }
+        // Shows the Health sheet only for types not asked about yet (Steps, for existing users).
+        try? await health.requestAuthorization()
+        let end = min(DayKey.add(7, to: monday), Date())
+        steps = await health.dailySteps(from: monday, to: end)
     }
 
     private var title: String {

@@ -46,6 +46,8 @@ struct ProfileView: View {
                         Divider().overlay(Theme.border)
                         PermissionRow(name: "Weight", mode: "Read", isOn: $app.readWeight)
                         Divider().overlay(Theme.border).padding(.leading, 16)
+                        PermissionRow(name: "Steps", mode: "Read", isOn: $app.readSteps)
+                        Divider().overlay(Theme.border).padding(.leading, 16)
                         PermissionRow(name: "Dietary energy, protein, carbs, fat", mode: "Write", isOn: $app.writeNutrition)
                         Divider().overlay(Theme.border)
                         Button {

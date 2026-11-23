@@ -17,6 +17,7 @@ final class HealthKitManager {
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
     private let bodyMass = HKQuantityType(.bodyMass)
+    private let stepCount = HKQuantityType(.stepCount)
     private let nutrition: [(HKQuantityType, String, KeyPath<Macros, Double>, HKUnit)] = [
         (HKQuantityType(.dietaryEnergyConsumed), "kcal", \.kcal, .kilocalorie()),
         (HKQuantityType(.dietaryProtein), "p", \.p, .gram()),
@@ -28,7 +29,7 @@ final class HealthKitManager {
     func requestAuthorization() async throws {
         guard isAvailable else { return }
         let share = Set(nutrition.map { $0.0 as HKSampleType })
-        let read: Set<HKObjectType> = [bodyMass]
+        let read: Set<HKObjectType> = [bodyMass, stepCount]
         try await store.requestAuthorization(toShare: share, read: read)
     }
 
@@ -70,6 +71,32 @@ final class HealthKitManager {
             lastError = nil
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    // MARK: Steps
+
+    /// Total steps per day (keyed YYYY-MM-DD) from `start` up to `end`, as Health's own daily totals
+    /// (deduplicated across iPhone and Apple Watch). Days with no steps are left out.
+    func dailySteps(from start: Date, to end: Date) async -> [String: Double] {
+        guard isAvailable, end > start else { return [:] }
+        let descriptor = HKStatisticsCollectionQueryDescriptor(
+            predicate: .quantitySample(type: stepCount, predicate: HKQuery.predicateForSamples(withStart: start, end: end)),
+            options: .cumulativeSum,
+            anchorDate: DayKey.cal.startOfDay(for: start),
+            intervalComponents: DateComponents(day: 1)
+        )
+        do {
+            let collection = try await descriptor.result(for: store)
+            var out: [String: Double] = [:]
+            collection.enumerateStatistics(from: start, to: end) { stats, _ in
+                if let sum = stats.sumQuantity()?.doubleValue(for: .count()), sum > 0 {
+                    out[DayKey.key(stats.startDate)] = sum
+                }
+            }
+            return out
+        } catch {
+            return [:]
         }
     }
 
