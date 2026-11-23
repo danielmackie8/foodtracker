@@ -79,7 +79,11 @@ struct Catalog {
 
     func amountLabel(of entry: Entry) -> String {
         switch entry.kind {
-        case .quick: return entry.amount == 1 ? "Quick add" : "\(entry.amount.clean) × quick add"
+        case .quick:
+            if let note = entry.note, !note.isEmpty {
+                return entry.amount == 1 ? note : "\(entry.amount.clean) × \(note)"
+            }
+            return entry.amount == 1 ? "Quick add" : "\(entry.amount.clean) × quick add"
         case .meal:
             if entry.amount == 1, let m = meals[entry.ref] { return m.desc }
             return entry.amount == 1 ? "1 serving" : "\(entry.amount.clean) servings"

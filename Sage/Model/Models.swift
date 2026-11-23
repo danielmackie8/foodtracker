@@ -137,6 +137,8 @@ final class Entry {
     var quickP: Double?
     var quickC: Double?
     var quickF: Double?
+    /// Free-text quantity, e.g. "4 each" for entries imported from another app.
+    var note: String?
 
     init(date: String, slot: Slot, kind: EntryKind, ref: String, amount: Double, time: String,
          quick: Macros? = nil) {

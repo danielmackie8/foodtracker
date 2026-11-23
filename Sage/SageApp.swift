@@ -15,6 +15,7 @@ struct SageApp: App {
             fatalError("Could not open the food log: \(error)")
         }
         SeedData.ensureSeeded(container.mainContext)
+        HistoryImport.runIfNeeded(container.mainContext)
     }
 
     var body: some Scene {
