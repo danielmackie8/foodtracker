@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sage Graphite — working prototype</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5D46}a:hover{color:#1E2A23}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#F6F3EE;color:#1E2A23;font-family:Manrope,system-ui,sans-serif;position:relative;overflow:hidden">
+
+  <div style="position:absolute;left:0;right:0;top:0;bottom:84px;overflow-y:auto">
+    <div style="padding:16px 16px 28px;display:flex;flex-direction:column;gap:12px">
+      <sc-if value="{{showHome}}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;min-height:56px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:13px;color:#5F6A63;font-weight:500">{{todayLong}}</span>
+              <span style="font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1">{{greeting}}</span>
+            </div>
+            <button aria-label="Profile" onClick="{{goProfile}}" style="width:44px;height:44px;border-radius:22px;border:1px solid #E7E1D6;background:#FBF9F5;color:#1E2A23;display:flex;align-items:center;justify-content:center">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>
+            </button>
+          </div>
+
+          <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:17px;font-weight:600">Today</span>
+              <span style="font-size:13px;font-weight:600;color:#5F6A63">{{todayEatenLabel}}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:20px">
+              <div style="position:relative;width:128px;height:128px;flex:none">
+                <svg width="128" height="128" viewBox="0 0 128 128" aria-hidden="true"><circle cx="64" cy="64" r="58.5" fill="none" stroke="#E7E1D6" stroke-width="11"></circle><circle cx="64" cy="64" r="58.5" fill="none" stroke="{{todayRingCol}}" stroke-width="11" stroke-linecap="round" stroke-dasharray="{{todayRing}}" transform="rotate(-90 64 64)"></circle></svg>
+                <div style="position:absolute;left:0;top:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                  <span style="font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1">{{todayLeft}}</span>
+                  <span style="font-size:12px;color:#5F6A63">{{todayLeftLabel}}</span>
+                </div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{todayMacros}}" as="m" hint-placeholder-count="3">
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#5F6A63">{{m.name}}</span><span style="font-weight:600">{{m.v}}<span style="color:#5F6A63;font-weight:400"> / {{m.g}} g</span></span></div>
+                    <div style="height:5px;border-radius:3px;background:#E7E1D6"><div style="width:{{m.w}};height:5px;border-radius:3px;background:{{m.col}}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:17px;font-weight:600">Weight</span>
+              <sc-if value="{{healthOn}}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{onSync}}" style="height:32px;padding:0 12px;border-radius:16px;border:0;background:#E7E1D6;color:#1E2A23;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="#E0365A" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"></path></svg>{{syncLabel}}
+                </button>
+              </sc-if>
+            </div>
+            <sc-if value="{{healthOn}}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:flex-end;justify-content:space-between">
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <span style="font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1">{{wLatest}}<span style="font-size:15px;color:#5F6A63;font-weight:500;letter-spacing:0"> kg</span></span>
+                    <span style="font-size:13px;color:#5F6A63">{{wLatestSub}}</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                    <span style="font-size:15px;font-weight:700;color:#2F5D46">{{wChange}}</span>
+                    <span style="font-size:12px;color:#5F6A63">{{wRangeLabel}}</span>
+                  </div>
+                </div>
+                <svg width="318" height="96" viewBox="0 0 318 96" role="img" aria-label="Weight trend from Apple Health">
+                  <line x1="0" x2="318" y1="24" y2="24" stroke="#E7E1D6"></line><line x1="0" x2="318" y1="48" y2="48" stroke="#E7E1D6"></line><line x1="0" x2="318" y1="72" y2="72" stroke="#E7E1D6"></line>
+                  <polyline points="{{wPts}}" fill="none" stroke="#2F5D46" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+                  <circle cx="{{wDotX}}" cy="{{wDotY}}" r="5" fill="#2F5D46" stroke="#FBF9F5" stroke-width="2"></circle>
+                </svg>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div style="display:flex;gap:6px">
+                    <sc-for list="{{ranges}}" as="r" hint-placeholder-count="2">
+                      <button onClick="{{r.pick}}" style="height:30px;padding:0 12px;border-radius:15px;border:0;background:{{r.bg}};color:{{r.col}};font-size:12px;font-weight:700">{{r.label}}</button>
+                    </sc-for>
+                  </div>
+                  <button onClick="{{openWeight}}" style="height:30px;padding:0 4px;border:0;background:transparent;color:#2F5D46;font-size:13px;font-weight:700">All readings</button>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{healthOff}}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <span style="font-size:14px;line-height:1.45;color:#5F6A63">Connect Apple Health to pull in your weigh-ins automatically from your scales or the Health app.</span>
+                <button onClick="{{openHealth}}" style="height:48px;border-radius:14px;border:0;background:#2F5D46;color:#FFFFFF;font-size:15px;font-weight:700">Connect Apple Health</button>
+              </div>
+            </sc-if>
+          </div>
+
+          <button onClick="{{goWeek}}" style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:10px;text-align:left;color:#1E2A23">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;width:100%">
+              <span style="font-size:17px;font-weight:600">Last 7 days</span>
+              <span style="font-size:13px;color:#5F6A63">avg <span style="color:#1E2A23;font-weight:700">{{avg7}}</span> kcal</span>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:16px;width:100%">
+              <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+                <div style="height:54px;display:flex;align-items:flex-end;justify-content:space-between">
+                  <sc-for list="{{bars7}}" as="b" hint-placeholder-count="7">
+                    <div style="width:22px;height:{{b.h}};border-radius:6px;background:{{b.col}}"></div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#5F6A63">
+                  <sc-for list="{{bars7}}" as="b" hint-placeholder-count="7"><span style="width:22px;text-align:center">{{b.label}}</span></sc-for>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px;width:84px">
+                <span style="font-size:22px;font-weight:700">{{phits7}}</span>
+                <span style="font-size:12px;color:#5F6A63;line-height:1.3">days hit protein</span>
+              </div>
+            </div>
+          </button>
+        </div>
+      </sc-if>
+      <sc-if value="{{showWeight}}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;min-height:44px">
+            <button onClick="{{closeWeight}}" style="height:44px;padding:0 8px 0 0;border:0;background:transparent;color:#2F5D46;font-size:16px;font-weight:700;display:flex;align-items:center;gap:4px">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>Home
+            </button>
+            <button onClick="{{onSync}}" style="height:36px;padding:0 14px;border-radius:18px;border:1px solid #E7E1D6;background:#FBF9F5;color:#1E2A23;font-size:13px;font-weight:600">{{syncLabel}}</button>
+          </div>
+          <span style="font-size:30px;font-weight:700;letter-spacing:-.02em">Weight</span>
+          <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <span style="font-size:40px;font-weight:700;letter-spacing:-.03em;line-height:1">{{wLatest}}<span style="font-size:16px;color:#5F6A63;font-weight:500;letter-spacing:0"> kg</span></span>
+              <span style="font-size:15px;font-weight:700;color:#2F5D46">{{wChange}} · {{wRangeLabel}}</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <sc-for list="{{ranges}}" as="r" hint-placeholder-count="2">
+                <button onClick="{{r.pick}}" style="height:30px;padding:0 12px;border-radius:15px;border:0;background:{{r.bg}};color:{{r.col}};font-size:12px;font-weight:700">{{r.label}}</button>
+              </sc-for>
+            </div>
+            <div style="position:relative">
+              <svg width="318" height="170" viewBox="0 0 318 170" role="img" aria-label="Weight readings from Apple Health over the selected range">
+                <line x1="0" x2="318" y1="42" y2="42" stroke="#E7E1D6"></line><line x1="0" x2="318" y1="85" y2="85" stroke="#E7E1D6"></line><line x1="0" x2="318" y1="128" y2="128" stroke="#E7E1D6"></line>
+                <polygon points="{{wBigArea}}" fill="#2F5D46" fill-opacity=".08"></polygon>
+                <polyline points="{{wBigPts}}" fill="none" stroke="#2F5D46" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+                <circle cx="{{wBigDotX}}" cy="{{wBigDotY}}" r="5.5" fill="#2F5D46" stroke="#FBF9F5" stroke-width="2"></circle>
+              </svg>
+              <span style="position:absolute;right:0;top:0;font-size:11px;color:#5F6A63">{{wHi}}</span>
+              <span style="position:absolute;right:0;bottom:2px;font-size:11px;color:#5F6A63">{{wLo}}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:#5F6A63"><span>{{wFirstLabel}}</span><span>{{wLastLabel}}</span></div>
+          </div>
+          <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:4px 16px;display:flex;flex-direction:column">
+            <sc-for list="{{wList}}" as="w" hint-placeholder-count="8">
+              <div style="display:flex;align-items:center;gap:12px;height:54px;border-bottom:1px solid #EFEAE1">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#E0365A" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"></path></svg>
+                <div style="flex:1;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">{{w.date}}</span><span style="font-size:12px;color:#5F6A63">Apple Health · {{w.time}}</span></div>
+                <span style="font-size:16px;font-weight:700">{{w.v}} kg</span>
+                <span style="width:44px;text-align:right;font-size:12px;font-weight:600;color:{{w.dcol}}">{{w.delta}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{showDay}}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;min-height:56px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:13px;color:#5F6A63;font-weight:500">{{dayWeekday}}</span>
+              <span style="font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1">{{dayTitle}}</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button aria-label="Previous day" onClick="{{dayPrev}}" style="width:44px;height:44px;border-radius:22px;border:1px solid #E7E1D6;background:#FBF9F5;color:#1E2A23;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+              <button aria-label="Next day" onClick="{{dayNext}}" style="width:44px;height:44px;border-radius:22px;border:1px solid #E7E1D6;background:#FBF9F5;color:{{dayNextCol}};display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button>
+            </div>
+          </div>
+
+          <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:17px;font-weight:600">Summary</span>
+              <span style="font-size:13px;font-weight:600;color:#5F6A63">{{dayEatenLabel}}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:20px">
+              <div style="position:relative;width:128px;height:128px;flex:none">
+                <svg width="128" height="128" viewBox="0 0 128 128" aria-hidden="true"><circle cx="64" cy="64" r="58.5" fill="none" stroke="#E7E1D6" stroke-width="11"></circle><circle cx="64" cy="64" r="58.5" fill="none" stroke="{{dayRingCol}}" stroke-width="11" stroke-linecap="round" stroke-dasharray="{{dayRing}}" transform="rotate(-90 64 64)"></circle></svg>
+                <div style="position:absolute;left:0;top:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                  <span style="font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1">{{dayLeft}}</span>
+                  <span style="font-size:12px;color:#5F6A63">{{dayLeftLabel}}</span>
+                </div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{dayMacros}}" as="m" hint-placeholder-count="3">
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#5F6A63">{{m.name}}</span><span style="font-weight:600">{{m.v}}<span style="color:#5F6A63;font-weight:400"> / {{m.g}} g</span></span></div>
+                    <div style="height:5px;border-radius:3px;background:#E7E1D6"><div style="width:{{m.w}};height:5px;border-radius:3px;background:{{m.col}}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <sc-for list="{{slots}}" as="sl" hint-placeholder-count="4">
+            <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;justify-content:space-between;align-items:center;min-height:36px">
+                <div style="display:flex;flex-direction:column"><span style="font-size:16px;font-weight:700">{{sl.name}}</span><span style="font-size:12px;color:#5F6A63">{{sl.sub}}</span></div>
+                <button aria-label="{{sl.addLabel}}" onClick="{{sl.add}}" style="width:36px;height:36px;border-radius:18px;border:0;background:#E7E1D6;color:#2F5D46;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+              </div>
+              <sc-for list="{{sl.items}}" as="e" hint-placeholder-count="1">
+                <button onClick="{{e.edit}}" style="display:flex;align-items:center;gap:12px;min-height:52px;border:0;border-top:1px solid #EFEAE1;background:transparent;padding:6px 0;text-align:left;color:#1E2A23">
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:15px;font-weight:600">{{e.name}}</span><span style="font-size:12px;color:#5F6A63">{{e.detail}}</span></div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span style="font-size:15px;font-weight:600">{{e.k}}</span><span style="font-size:12px;color:#2F5D46;font-weight:700">{{e.p}} g P</span></div>
+                </button>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{showWeek}}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;min-height:56px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:13px;color:#5F6A63;font-weight:500">{{weekRange}}</span>
+              <span style="font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1">{{weekTitle}}</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button aria-label="Previous week" onClick="{{weekPrev}}" style="width:44px;height:44px;border-radius:22px;border:1px solid #E7E1D6;background:#FBF9F5;color:#1E2A23;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+              <button aria-label="Next week" onClick="{{weekNext}}" style="width:44px;height:44px;border-radius:22px;border:1px solid #E7E1D6;background:#FBF9F5;color:{{weekNextCol}};display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+            <sc-for list="{{wkTiles}}" as="tl" hint-placeholder-count="4">
+              <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:13px;font-weight:600;color:#5F6A63">{{tl.label}}</span>
+                <span style="font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1">{{tl.val}}</span>
+                <span style="font-size:12px;color:{{tl.subCol}};font-weight:600">{{tl.sub}}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:17px;font-weight:600">Calories</span>
+              <span style="font-size:12px;color:#5F6A63;display:flex;align-items:center;gap:6px"><span style="width:14px;border-top:1px dashed #5F6A63"></span>{{goalKLabel}} target</span>
+            </div>
+            <div style="position:relative;height:132px;display:flex;align-items:flex-end;justify-content:space-between">
+              <div style="position:absolute;left:0;right:0;bottom:{{wkTargetY}};border-top:1px dashed #5F6A63"></div>
+              <sc-for list="{{wkBars}}" as="b" hint-placeholder-count="7">
+                <div style="width:30px;height:{{b.h}};border-radius:8px;background:{{b.col}};border:{{b.border}};box-sizing:border-box"></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:#5F6A63">
+              <sc-for list="{{wkBars}}" as="b" hint-placeholder-count="7"><span style="width:30px;text-align:center;font-weight:{{b.fw}}">{{b.label}}</span></sc-for>
+            </div>
+          </div>
+
+          <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:17px;font-weight:600">Macros</span><span style="font-size:12px;color:#5F6A63">daily average</span></div>
+            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px">
+              <sc-for list="{{wkSplit}}" as="x" hint-placeholder-count="3"><div style="width:{{x.w}};background:{{x.col}}"></div></sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+              <sc-for list="{{wkSplit}}" as="x" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="display:flex;align-items:center;gap:6px;font-size:12px;color:#5F6A63"><span style="width:8px;height:8px;border-radius:4px;background:{{x.col}}"></span>{{x.name}}</span><span style="font-size:15px;font-weight:600">{{x.g}} g <span style="font-weight:400;color:#5F6A63;font-size:12px">{{x.pct}}</span></span></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #E7E1D6;padding-top:10px">
+              <span style="font-size:13px;color:#5F6A63;width:90px;line-height:1.3">{{proteinGoalLabel}}</span>
+              <div style="flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr))">
+                <sc-for list="{{wkDots}}" as="d" hint-placeholder-count="7">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="width:14px;height:14px;border-radius:7px;box-sizing:border-box;background:{{d.bg}};border:{{d.border}}"></span><span style="font-size:11px;color:#5F6A63">{{d.label}}</span></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{showProfile}}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:2px;min-height:56px;justify-content:flex-end">
+            <span style="font-size:13px;color:#5F6A63;font-weight:500">Settings</span>
+            <span style="font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1">Profile</span>
+          </div>
+
+          <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="width:40px;height:40px;border-radius:10px;background:#FFFFFF;border:1px solid #E7E1D6;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="#E0365A" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"></path></svg></span>
+              <div style="flex:1;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:700">Apple Health</span><span style="font-size:12px;color:#5F6A63">{{healthStatus}}</span></div>
+              <button role="switch" aria-checked="{{healthOn}}" aria-label="Apple Health connection" onClick="{{toggleHealth}}" style="width:52px;height:32px;border-radius:16px;border:0;background:{{switchBg}};position:relative;padding:0">
+                <span style="position:absolute;top:3px;left:{{switchKnob}};width:26px;height:26px;border-radius:13px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
+              </button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;border-top:1px solid #E7E1D6;padding-top:10px;font-size:13px;color:#5F6A63">
+              <span style="display:flex;justify-content:space-between"><span>Weight</span><span style="color:#1E2A23;font-weight:600">Read</span></span>
+              <span style="display:flex;justify-content:space-between"><span>Dietary energy, protein, carbs, fat</span><span style="color:#1E2A23;font-weight:600">Write</span></span>
+            </div>
+          </div>
+
+          <div style="background:#FBF9F5;border:1px solid #E7E1D6;border-radius:22px;padding:4px 16px;display:flex;flex-direction:column">
+            <span style="font-size:17px;font-weight:600;padding:12px 0 4px">Daily goals</span>
+            <sc-for list="{{goalRows}}" as="g" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:10px;height:56px;border-top:1px solid #EFEAE1">
+                <span style="flex:1;font-size:15px;font-weight:600">{{g.name}}</span>
+                <button aria-label="{{g.minusLabel}}" onClick="{{g.minus}}" style="width:36px;height:36px;border-radius:18px;border:0;background:#E7E1D6;color:#1E2A23;font-size:18px;font-weight:700">−</button>
+                <span style="width:76px;text-align:center;font-size:15px;font-weight:700">{{g.val}}</span>
+                <button aria-label="{{g.plusLabel}}" onClick="{{g.plus}}" style="width:36px;height:36px;border-radius:18px;border:0;background:#E7E1D6;color:#1E2A23;font-size:18px;font-weight:700">+</button>
+              </div>
+            </sc-for>
+          </div>
+
+          <button onClick="{{resetDemo}}" style="height:48px;border-radius:14px;border:1px solid #E7E1D6;background:transparent;color:#5F6A63;font-size:14px;font-weight:600">Reset demo data</button>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  <nav aria-label="Main" style="position:absolute;left:0;right:0;bottom:0;height:84px;background:#FBF9F5;border-top:1px solid #E7E1D6;display:flex;justify-content:space-around;align-items:flex-start;padding:6px 8px 0;box-sizing:border-box">
+    <sc-for list="{{tabsL}}" as="t" hint-placeholder-count="2">
+      <button onClick="{{t.go}}" aria-current="{{t.current}}" style="width:60px;height:52px;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:{{t.fw}};color:{{t.col}}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="{{t.d}}"></path></svg>{{t.name}}
+      </button>
+    </sc-for>
+    <button aria-label="Log food" onClick="{{openLogDefault}}" style="width:52px;height:52px;border-radius:26px;border:0;background:#2F5D46;color:#FFFFFF;display:flex;align-items:center;justify-content:center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+    </button>
+    <sc-for list="{{tabsR}}" as="t" hint-placeholder-count="2">
+      <button onClick="{{t.go}}" aria-current="{{t.current}}" style="width:60px;height:52px;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:{{t.fw}};color:{{t.col}}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="{{t.d}}"></path></svg>{{t.name}}
+      </button>
+    </sc-for>
+  </nav>
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;top:0;right:0;bottom:0">
+      <button aria-label="Close" onClick="{{closeSheet}}" style="position:absolute;left:0;top:0;right:0;bottom:0;border:0;background:rgba(20,28,23,.38);padding:0"></button>
+      <div style="position:absolute;left:0;right:0;bottom:0;max-height:760px;background:#FBF9F5;border-radius:28px 28px 0 0;display:flex;flex-direction:column;overflow:hidden">
+        <div style="width:40px;height:5px;border-radius:3px;background:#DCD4C6;align-self:center;margin-top:8px;flex:none"></div>
+
+        <sc-if value="{{showList}}" hint-placeholder-val="{{ true }}">
+          <div style="padding:10px 16px 0;display:flex;flex-direction:column;gap:12px;flex:none">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:22px;font-weight:700;letter-spacing:-.01em">Add to {{slot}}</span>
+              <button onClick="{{closeSheet}}" style="height:36px;padding:0 4px;border:0;background:transparent;color:#2F5D46;font-size:15px;font-weight:700">Cancel</button>
+            </div>
+            <div style="display:flex;gap:6px">
+              <sc-for list="{{slotChips}}" as="c" hint-placeholder-count="4">
+                <button onClick="{{c.pick}}" style="flex:1;height:34px;border-radius:17px;border:1px solid {{c.border}};background:{{c.bg}};color:{{c.col}};font-size:13px;font-weight:700">{{c.name}}</button>
+              </sc-for>
+            </div>
+            <label style="height:44px;border-radius:14px;background:#FFFFFF;border:1px solid #E7E1D6;display:flex;align-items:center;gap:8px;padding:0 12px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5F6A63" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+              <input aria-label="Search foods and meals" placeholder="Search foods, brands or a barcode" value="{{q}}" onChange="{{onQ}}" style="flex:1;border:0;outline:0;background:transparent;font-size:15px;color:#1E2A23">
+            </label>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+              <button onClick="{{openQuick}}" style="height:42px;border-radius:12px;border:1px solid #E7E1D6;background:#FFFFFF;color:#1E2A23;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2F5D46" stroke-width="2.4" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"></path></svg>Quick add
+              </button>
+              <button onClick="{{openCreate}}" style="height:42px;border-radius:12px;border:1px solid #E7E1D6;background:#FFFFFF;color:#1E2A23;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2F5D46" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Create a food
+              </button>
+            </div>
+            <div style="display:flex;gap:6px;background:#EFEAE1;border-radius:12px;padding:3px">
+              <sc-for list="{{listTabs}}" as="lt" hint-placeholder-count="2">
+                <button onClick="{{lt.pick}}" style="flex:1;height:32px;border-radius:10px;border:0;background:{{lt.bg}};color:#1E2A23;font-size:13px;font-weight:{{lt.fw}}">{{lt.name}}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="overflow-y:auto;padding:4px 16px 28px;max-height:470px">
+            <sc-for list="{{listItems}}" as="it" hint-placeholder-count="6">
+              <button onClick="{{it.pick}}" style="width:100%;display:flex;align-items:center;gap:12px;min-height:58px;border:0;border-bottom:1px solid #EFEAE1;background:transparent;text-align:left;padding:6px 0;color:#1E2A23">
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:700">{{it.name}}</span><span style="font-size:12px;color:#5F6A63;line-height:1.35">{{it.sub}}</span></div>
+                <span style="width:30px;height:30px;border-radius:15px;background:#E7E1D6;color:#2F5D46;display:flex;align-items:center;justify-content:center;flex:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
+              </button>
+            </sc-for>
+            <sc-if value="{{offHint}}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:28px 12px;text-align:center">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2F5D46" stroke-width="1.8" aria-hidden="true"><path d="M4 6v12M7 6v12M11 6v12M14 6v12M17 6v12M20 6v12"></path></svg>
+                <span style="font-size:15px;font-weight:700">Search any UK product</span>
+                <span style="font-size:13px;color:#5F6A63;line-height:1.45">Type a brand and product, like “Tesco 5% mince”, or the barcode number from the pack.</span>
+                <span style="font-size:12px;color:#5F6A63">{{offStatus}}</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{hasOff}}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 2px"><span style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#5F6A63">UK PRODUCTS</span><span style="font-size:11px;color:#5F6A63">Open Food Facts</span></div>
+              <sc-for list="{{offItems}}" as="it" hint-placeholder-count="4">
+                <button onClick="{{it.pick}}" style="width:100%;display:flex;align-items:center;gap:12px;min-height:58px;border:0;border-bottom:1px solid #EFEAE1;background:transparent;text-align:left;padding:6px 0;color:#1E2A23">
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:700">{{it.name}}</span><span style="font-size:12px;color:#5F6A63;line-height:1.35">{{it.sub}}</span></div>
+                  <span style="width:30px;height:30px;border-radius:15px;background:#E7E1D6;color:#2F5D46;display:flex;align-items:center;justify-content:center;flex:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
+                </button>
+              </sc-for>
+            </sc-if>
+            <sc-if value="{{listEmpty}}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 0">
+                <span style="font-size:14px;color:#5F6A63">No matches for “{{q}}”.</span>
+                <button onClick="{{createFromSearch}}" style="height:40px;padding:0 16px;border-radius:20px;border:0;background:#2F5D46;color:#FFFFFF;font-size:14px;font-weight:700">Create “{{q}}”</button>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{showForm}}" hint-placeholder-val="{{ false }}">
+          <div style="padding:10px 16px 28px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <button onClick="{{formBack}}" style="height:36px;padding:0;border:0;background:transparent;color:#2F5D46;font-size:15px;font-weight:700;display:flex;align-items:center;gap:2px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>Back</button>
+              <span style="font-size:13px;color:#5F6A63;font-weight:600">{{slot}}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font-size:24px;font-weight:800;letter-spacing:-.02em">{{formTitle}}</span>
+              <span style="font-size:13px;color:#5F6A63;line-height:1.4">{{formSub}}</span>
+            </div>
+            <sc-if value="{{isCreate}}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:6px;background:#EFEAE1;border-radius:12px;padding:3px">
+                <sc-for list="{{basisTabs}}" as="bt" hint-placeholder-count="2">
+                  <button onClick="{{bt.pick}}" style="flex:1;height:34px;border-radius:10px;border:0;background:{{bt.bg}};color:#1E2A23;font-size:13px;font-weight:{{bt.fw}}">{{bt.name}}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:13px;font-weight:600;color:#5F6A63">{{nameLabel}}</span>
+              <input value="{{fName}}" onChange="{{onFName}}" placeholder="{{namePlaceholder}}" style="height:48px;border-radius:12px;border:1px solid #E7E1D6;background:#FFFFFF;padding:0 12px;font-size:16px;color:#1E2A23;outline:0">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:13px;font-weight:600;color:#5F6A63">{{kcalLabel}}</span>
+              <input inputMode="decimal" value="{{fK}}" onChange="{{onFK}}" placeholder="0" style="height:52px;border-radius:12px;border:1px solid #E7E1D6;background:#FFFFFF;padding:0 12px;font-size:22px;font-weight:700;color:#1E2A23;outline:0">
+            </label>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+              <label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:600;color:#2F5D46">Protein g</span><input inputMode="decimal" value="{{fP}}" onChange="{{onFP}}" placeholder="0" style="height:48px;border-radius:12px;border:1px solid #E7E1D6;background:#FFFFFF;padding:0 12px;font-size:17px;font-weight:600;color:#1E2A23;outline:0;min-width:0"></label>
+              <label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:600;color:#5F6A63">Carbs g</span><input inputMode="decimal" value="{{fC}}" onChange="{{onFC}}" placeholder="0" style="height:48px;border-radius:12px;border:1px solid #E7E1D6;background:#FFFFFF;padding:0 12px;font-size:17px;font-weight:600;color:#1E2A23;outline:0;min-width:0"></label>
+              <label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:600;color:#5F6A63">Fat g</span><input inputMode="decimal" value="{{fF}}" onChange="{{onFF}}" placeholder="0" style="height:48px;border-radius:12px;border:1px solid #E7E1D6;background:#FFFFFF;padding:0 12px;font-size:17px;font-weight:600;color:#1E2A23;outline:0;min-width:0"></label>
+            </div>
+            <span style="font-size:13px;color:#5F6A63;text-align:center">{{formPreview}}</span>
+            <button onClick="{{saveForm}}" aria-disabled="{{formInvalid}}" style="height:54px;border-radius:16px;border:0;background:{{formCtaBg}};color:#FFFFFF;font-size:16px;font-weight:700">{{formCtaLabel}}</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{showPick}}" hint-placeholder-val="{{ false }}">
+          <div style="padding:10px 16px 28px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <button onClick="{{pickBack}}" style="height:36px;padding:0;border:0;background:transparent;color:#2F5D46;font-size:15px;font-weight:700;display:flex;align-items:center;gap:2px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>{{pickBackLabel}}</button>
+              <span style="font-size:13px;color:#5F6A63;font-weight:600">{{pickSlotLabel}}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font-size:24px;font-weight:800;letter-spacing:-.02em">{{pickName}}</span>
+              <span style="font-size:13px;color:#5F6A63;line-height:1.4">{{pickSub}}</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#FFFFFF;border:1px solid #E7E1D6;border-radius:18px;padding:10px">
+              <button aria-label="Less" onClick="{{qtyMinus}}" style="width:48px;height:48px;border-radius:24px;border:0;background:#E7E1D6;color:#1E2A23;font-size:22px;font-weight:700">−</button>
+              <div style="display:flex;flex-direction:column;align-items:center"><span style="font-size:28px;font-weight:800;letter-spacing:-.02em">{{qtyLabel}}</span><span style="font-size:12px;color:#5F6A63">{{qtyUnit}}</span></div>
+              <button aria-label="More" onClick="{{qtyPlus}}" style="width:48px;height:48px;border-radius:24px;border:0;background:#E7E1D6;color:#1E2A23;font-size:22px;font-weight:700">+</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;background:#EFEAE1;border-radius:16px;padding:12px">
+              <sc-for list="{{pickMacros}}" as="pm" hint-placeholder-count="4">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:18px;font-weight:800;color:{{pm.col}}">{{pm.v}}</span><span style="font-size:12px;color:#5F6A63">{{pm.name}}</span></div>
+              </sc-for>
+            </div>
+            <span style="font-size:13px;color:#5F6A63;text-align:center">{{pickAfter}}</span>
+            <sc-if value="{{offAttr}}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:11px;color:#5F6A63;text-align:center;line-height:1.4">{{offBarcode}} · Data from Open Food Facts (ODbL). Check it against the pack.</span>
+            </sc-if>
+            <button onClick="{{pickCta}}" style="height:54px;border-radius:16px;border:0;background:#2F5D46;color:#FFFFFF;font-size:16px;font-weight:700">{{pickCtaLabel}}</button>
+            <sc-if value="{{showDelete}}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{deleteEntry}}" style="height:48px;border-radius:16px;border:1px solid #E7E1D6;background:transparent;color:#A33A2B;font-size:15px;font-weight:700">Delete entry</button>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{showHealth}}" hint-placeholder-val="{{ false }}">
+          <div style="padding:10px 20px 28px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding-top:6px">
+              <span style="width:56px;height:56px;border-radius:14px;background:#FFFFFF;border:1px solid #E7E1D6;display:flex;align-items:center;justify-content:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="#E0365A" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"></path></svg></span>
+              <span style="font-size:20px;font-weight:800">Health Access</span>
+              <span style="font-size:14px;color:#5F6A63;line-height:1.45">Sage would like to read your weight and save the food you log to Apple Health.</span>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E7E1D6;border-radius:16px;padding:4px 14px;display:flex;flex-direction:column">
+              <sc-for list="{{permRows}}" as="pr" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;justify-content:space-between;height:52px;border-bottom:1px solid #EFEAE1">
+                  <div style="display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">{{pr.name}}</span><span style="font-size:12px;color:#5F6A63">{{pr.mode}}</span></div>
+                  <button role="switch" aria-checked="{{pr.on}}" aria-label="{{pr.name}}" onClick="{{pr.toggle}}" style="width:52px;height:32px;border-radius:16px;border:0;background:{{pr.bg}};position:relative;padding:0"><span style="position:absolute;top:3px;left:{{pr.knob}};width:26px;height:26px;border-radius:13px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></button>
+                </div>
+              </sc-for>
+            </div>
+            <button onClick="{{allowHealth}}" style="height:54px;border-radius:16px;border:0;background:#2F5D46;color:#FFFFFF;font-size:16px;font-weight:700">Allow</button>
+            <button onClick="{{closeSheet}}" style="height:44px;border:0;background:transparent;color:#5F6A63;font-size:15px;font-weight:600">Don't Allow</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{toastOn}}" hint-placeholder-val="{{ false }}">
+    <div role="status" style="position:absolute;left:50%;top:16px;transform:translateX(-50%);height:40px;padding:0 16px;border-radius:20px;background:#1E2A23;color:#FFFFFF;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.18)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FD3B4" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>{{toast}}
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.KEY = 'sage-graphite-proto-v1';
+    this.F = {
+      whey: { name: 'Whey protein', unit: 'scoop', per: 1, step: 1, def: 1, k: 120, p: 24, c: 3, f: 2 },
+      egg: { name: 'Egg, large', unit: 'egg', per: 1, step: 1, def: 2, k: 72, p: 6.5, c: 0.4, f: 5 },
+      sourdough: { name: 'Sourdough', unit: 'slice', per: 1, step: 1, def: 1, k: 140, p: 5, c: 26, f: 1 },
+      bread: { name: 'Wholemeal bread', unit: 'slice', per: 1, step: 1, def: 2, k: 95, p: 4.5, c: 15, f: 1.2 },
+      yog: { name: 'Greek yoghurt', unit: 'g', per: 100, step: 25, def: 100, k: 95, p: 7, c: 4, f: 5 },
+      berries: { name: 'Mixed berries', unit: 'g', per: 100, step: 20, def: 80, k: 50, p: 1, c: 10, f: 0 },
+      pb: { name: 'Peanut butter', unit: 'g', per: 100, step: 5, def: 15, k: 600, p: 25, c: 13, f: 47 },
+      mince: { name: 'Beef mince 5%', unit: 'g', per: 100, step: 25, def: 250, k: 136, p: 20.8, c: 0, f: 5.5 },
+      chicken: { name: 'Chicken breast', unit: 'g', per: 100, step: 25, def: 200, k: 120, p: 23, c: 0, f: 3 },
+      pork: { name: 'Pork loin steak', unit: 'g', per: 100, step: 25, def: 150, k: 145, p: 22, c: 0, f: 6 },
+      pasta: { name: 'Pasta', unit: 'g', per: 100, step: 10, def: 80, k: 356, p: 12.5, c: 72, f: 1.5, dry: true },
+      rice: { name: 'Basmati rice', unit: 'g', per: 100, step: 5, def: 75, k: 355, p: 8, c: 78, f: 1, dry: true },
+      oats: { name: 'Porridge oats', unit: 'g', per: 100, step: 10, def: 40, k: 375, p: 12.5, c: 60, f: 7.5, dry: true },
+      potato: { name: 'Potatoes', unit: 'g', per: 100, step: 50, def: 300, k: 77, p: 2, c: 17, f: 0.1 },
+      sauce: { name: 'Tomato pasta sauce', unit: 'g', per: 100, step: 20, def: 120, k: 50, p: 1.5, c: 8, f: 1.5 },
+      milk: { name: 'Semi-skimmed milk', unit: 'ml', per: 100, step: 50, def: 200, k: 49, p: 3.5, c: 5, f: 1.8 },
+      cheddar: { name: 'Cheddar', unit: 'g', per: 100, step: 10, def: 30, k: 416, p: 25, c: 0.1, f: 35 },
+      banana: { name: 'Banana', unit: 'banana', per: 1, step: 1, def: 1, k: 105, p: 1.3, c: 27, f: 0.4 },
+      oil: { name: 'Olive oil', unit: 'tbsp', per: 1, step: 1, def: 1, k: 120, p: 0, c: 0, f: 14 },
+      pizza: { name: 'Takeaway pizza', unit: 'slice', per: 1, step: 1, def: 2, k: 205, p: 9, c: 24, f: 8 }
+    };
+    this.M = {
+      shake: { name: 'Whey shake', desc: '1 scoop', parts: [['whey', 1]] },
+      eggs: { name: 'Poached eggs & sourdough', desc: '4 eggs · 1 slice sourdough', parts: [['egg', 4], ['sourdough', 1]] },
+      bowl: { name: 'Greek yoghurt bowl', desc: '100g yoghurt · 80g berries · 15g PB', parts: [['yog', 100], ['berries', 80], ['pb', 15]] },
+      mincepasta: { name: 'Mince & pasta', desc: '250g mince · 80g pasta (dry) · sauce', parts: [['mince', 250], ['pasta', 80], ['sauce', 120]] },
+      chickpot: { name: 'Chicken & potatoes', desc: '200g chicken · 300g potatoes', parts: [['chicken', 200], ['potato', 300]] },
+      mincerice: { name: 'Mince & rice', desc: '250g mince · 75g rice (dry) · sauce', parts: [['mince', 250], ['rice', 75], ['sauce', 120]] },
+      eggstoast: { name: 'Eggs on toast', desc: '3 eggs · 2 slices wholemeal', parts: [['egg', 3], ['bread', 2]] }
+    };
+    this.SLOTS = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
+    this.BASE = Object.keys(this.F);
+    this.timers = [];
+    const data = this.load() || this.seed();
+    if (!data.custom) data.custom = [];
+    data.custom.forEach((f) => { this.F[f.id] = f; });
+    this.state = Object.assign({
+      tab: 'home', sub: null, sheet: null, dayOff: 0, weekOff: 0, q: '', listTab: 'usuals',
+      pick: null, qty: 1, slot: this.defaultSlot(), editId: null, wRange: '3M', syncing: false, toast: null,
+      perm: { w: true, k: true, p: true },
+      form: null, fName: '', fK: '', fP: '', fC: '', fF: '', fBasis: '100g',
+      offReady: false, offError: false
+    }, data);
+    this.OFF = []; this.OFFHAY = [];
+  }
+
+  componentDidMount() {
+    try {
+      fetch('/_blob/07b50f15652dded13dbb37beaa9163cf').then((r) => r.json()).then((rows) => {
+        this.OFF = rows; this.OFFHAY = rows.map((x) => (x[1] + ' ' + x[2]).toLowerCase());
+        this.setState({ offReady: true });
+      }).catch(() => this.setState({ offError: true }));
+    } catch (e) { this.setState({ offError: true }); }
+  }
+  offFood(row) {
+    return { id: 'off' + row[0], name: row[1], brand: row[2], pack: row[3], unit: 'g', per: 100, step: 10, def: row[8] || 100, serving: row[8] || 0, k: row[4], p: row[5], c: row[6], f: row[7], off: true, code: row[0] };
+  }
+  offSearch(q) {
+    if (!this.OFF.length || !q) return [];
+    if (/^\d{8,14}$/.test(q)) { const r = this.OFF.find((x) => x[0] === q || x[0].replace(/^0+/, '') === q.replace(/^0+/, '')); return r ? [r] : []; }
+    const toks = q.split(/\s+/).filter((x) => x.length);
+    const res = [];
+    for (let i = 0; i < this.OFF.length && res.length < 30; i++) {
+      const h = this.OFFHAY[i]; if (toks.every((t) => h.indexOf(t) >= 0)) res.push(this.OFF[i]);
+    }
+    return res;
+  }
+  componentWillUnmount() { this.timers.forEach((t) => clearTimeout(t)); }
+
+  today() { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  dkey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  parse(k) { const a = k.split('-'); return new Date(+a[0], +a[1] - 1, +a[2]); }
+  mon(i) { return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i]; }
+  wd(i) { return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]; }
+  short(k) { const d = this.parse(k); return d.getDate() + ' ' + this.mon(d.getMonth()); }
+  fmt(n) { return Math.round(n).toLocaleString('en-GB'); }
+  nowTime() { const n = new Date(); return String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'); }
+  defaultSlot() { const h = new Date().getHours() + new Date().getMinutes() / 60; return h < 10.5 ? 'Breakfast' : h < 15 ? 'Lunch' : h < 17.5 ? 'Snack' : 'Dinner'; }
+
+  seed() {
+    const t = this.today(); const entries = []; let id = 1;
+    const add = (d, slot, kind, ref, amt, time) => { entries.push({ id: id++, date: this.dkey(d), slot: slot, kind: kind, ref: ref, amt: amt, time: time }); };
+    const dinners = ['mincepasta', 'chickpot', 'mincerice'];
+    for (let i = 27; i >= 1; i--) {
+      const d = this.addDays(t, -i); const dow = d.getDay();
+      add(d, 'Breakfast', 'meal', 'shake', 1, '07:40');
+      if (i % 5 === 0) add(d, 'Lunch', 'meal', 'eggstoast', 1, '12:45'); else add(d, 'Lunch', 'meal', 'eggs', 1, '12:30');
+      add(d, 'Snack', 'meal', 'bowl', 1, '15:10');
+      if (dow === 1 || dow === 3 || dow === 5) add(d, 'Snack', 'meal', 'shake', 1, '17:30');
+      if (dow === 6) add(d, 'Dinner', 'food', 'pizza', 5, '19:30');
+      else add(d, 'Dinner', 'meal', dinners[i % 3], 1, '19:00');
+      if (i % 4 === 0) add(d, 'Snack', 'meal', 'bowl', 1, '21:00');
+    }
+    add(t, 'Breakfast', 'meal', 'shake', 1, '07:40');
+    const weights = [];
+    for (let i = 90; i >= 1; i--) {
+      if (i % 2 !== 0 && i % 7 !== 0) continue;
+      const v = 86.9 - (90 - i) * 0.0165 + Math.sin(i * 1.7) * 0.22;
+      weights.push({ date: this.dkey(this.addDays(t, -i)), v: Math.round(v * 10) / 10, time: '07:1' + (i % 10) });
+    }
+    return { entries: entries, nextId: id, weights: weights, goals: { k: 1800, p: 150, c: 170, f: 60 }, health: true, lastSync: Date.now() - 2 * 3600 * 1000, custom: [] };
+  }
+
+  load() {
+    try { const raw = window.localStorage.getItem(this.KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  save() {
+    try {
+      const s = this.state;
+      window.localStorage.setItem(this.KEY, JSON.stringify({ entries: s.entries, nextId: s.nextId, weights: s.weights, goals: s.goals, health: s.health, lastSync: s.lastSync, custom: s.custom }));
+    } catch (e) { }
+  }
+  commit(patch) { this.setState(patch, () => this.save()); }
+  showToast(msg) {
+    this.setState({ toast: msg });
+    this.timers.push(setTimeout(() => this.setState({ toast: null }), 2200));
+  }
+
+  foodMac(f, amt) { const r = amt / f.per; return { k: f.k * r, p: f.p * r, c: f.c * r, f: f.f * r }; }
+  mealMac(id) {
+    const m = this.M[id]; const o = { k: 0, p: 0, c: 0, f: 0 };
+    m.parts.forEach((pt) => { const x = this.foodMac(this.F[pt[0]], pt[1]); o.k += x.k; o.p += x.p; o.c += x.c; o.f += x.f; });
+    return o;
+  }
+  macOf(kind, ref, amt) {
+    if (kind === 'food' && !this.F[ref]) return { k: 0, p: 0, c: 0, f: 0 };
+    if (kind === 'quick') return { k: ref.k * amt, p: ref.p * amt, c: ref.c * amt, f: ref.f * amt };
+    if (kind === 'food') return this.foodMac(this.F[ref], amt);
+    const m = this.mealMac(ref); return { k: m.k * amt, p: m.p * amt, c: m.c * amt, f: m.f * amt };
+  }
+  totals(key) {
+    const o = { k: 0, p: 0, c: 0, f: 0, n: 0 };
+    this.state.entries.forEach((e) => { if (e.date === key) { const m = this.macOf(e.kind, e.ref, e.amt); o.k += m.k; o.p += m.p; o.c += m.c; o.f += m.f; o.n++; } });
+    return o;
+  }
+  amtLabel(kind, ref, amt) {
+    if (kind === 'quick') return amt === 1 ? 'Quick add' : amt + ' × quick add';
+    if (kind === 'meal') return amt === 1 ? '1 serving' : amt + ' servings';
+    const f = this.F[ref]; if (!f) return amt + 'g';
+    if (f.unit === 'g') return amt + 'g' + (f.dry ? ' dry' : '');
+    if (f.unit === 'ml') return amt + 'ml';
+    return amt + ' ' + f.unit + (amt !== 1 ? 's' : '');
+  }
+  nameOf(kind, ref) { if (kind === 'quick') return ref.name; if (kind === 'food' && !this.F[ref]) return 'Unknown food'; return kind === 'meal' ? this.M[ref].name : this.F[ref].name; }
+
+  chart(list, w, h) {
+    if (!list.length) return { pts: '', area: '', dx: -10, dy: -10, lo: 0, hi: 0 };
+    const vals = list.map((x) => x.v);
+    const lo = Math.min.apply(null, vals) - 0.3, hi = Math.max.apply(null, vals) + 0.3;
+    const n = list.length;
+    const xy = list.map((x, i) => [8 + (n === 1 ? (w - 16) / 2 : i * (w - 16) / (n - 1)), 6 + (hi - x.v) / (hi - lo) * (h - 12)]);
+    const pts = xy.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const last = xy[xy.length - 1];
+    return { pts: pts, area: xy[0][0].toFixed(1) + ',' + h + ' ' + pts + ' ' + last[0].toFixed(1) + ',' + h, dx: last[0], dy: last[1], lo: lo, hi: hi };
+  }
+
+  // ---- actions
+  openLog(slot, kind, ref) {
+    if (kind) this.setState({ sheet: 'log', form: null, slot: slot, pick: { kind: kind, ref: ref }, qty: kind === 'meal' ? 1 : this.F[ref].def, editId: null });
+    else this.setState({ sheet: 'log', form: null, slot: slot || this.defaultSlot(), q: '', listTab: 'usuals', pick: null, editId: null });
+  }
+  num(x) { const n = parseFloat(String(x).replace(',', '.')); return isNaN(n) || n < 0 ? 0 : n; }
+  openForm(kind, name) { this.setState({ form: kind, pick: null, fName: name || '', fK: '', fP: '', fC: '', fF: '', fBasis: '100g' }); }
+  saveForm() {
+    const s = this.state;
+    const k = this.num(s.fK), p = this.num(s.fP), c = this.num(s.fC), f = this.num(s.fF);
+    if (!(k > 0)) return;
+    if (s.form === 'quick') {
+      const ref = { name: s.fName.trim() || 'Quick add', k: k, p: p, c: c, f: f };
+      const e = { id: s.nextId, date: this.dkey(this.logDate()), slot: s.slot, kind: 'quick', ref: ref, amt: 1, time: this.nowTime() };
+      this.commit({ entries: s.entries.concat([e]), nextId: s.nextId + 1, sheet: null, form: null, pick: null, tab: s.tab === 'week' || s.tab === 'profile' ? 'day' : s.tab, sub: null, dayOff: s.tab === 'day' ? s.dayOff : 0 });
+      this.showToast('Added ' + Math.round(k) + ' kcal to ' + s.slot);
+      return;
+    }
+    const name = s.fName.trim(); if (!name) return;
+    const per100 = s.fBasis === '100g';
+    const food = { id: 'c' + Date.now(), name: name, unit: per100 ? 'g' : 'serving', per: per100 ? 100 : 1, step: per100 ? 10 : 0.5, def: per100 ? 100 : 1, k: k, p: p, c: c, f: f, custom: true };
+    this.F[food.id] = food;
+    this.commit({ custom: s.custom.concat([food]), form: null, pick: { kind: 'food', ref: food.id }, qty: food.def });
+    this.showToast('Saved ' + name + ' to your foods');
+  }
+  stepQty(dir) {
+    const p = this.state.pick; if (!p) return;
+    const step = p.kind === 'food' ? this.F[p.ref].step : 0.5;
+    const q = Math.max(step, Math.round((this.state.qty + dir * step) * 100) / 100);
+    this.setState({ qty: q });
+  }
+  logDate() { return this.state.tab === 'day' ? this.addDays(this.today(), this.state.dayOff) : this.today(); }
+  addPicked() {
+    const s = this.state, p = s.pick;
+    const e = { id: s.nextId, date: this.dkey(this.logDate()), slot: s.slot, kind: p.kind, ref: p.ref, amt: s.qty, time: this.nowTime() };
+    const name = this.nameOf(p.kind, p.ref);
+    const fo = p.kind === 'food' ? this.F[p.ref] : null;
+    const custom = fo && fo.off && !s.custom.some((c) => c.id === fo.id) ? s.custom.concat([fo]) : s.custom;
+    this.commit({ custom: custom, entries: s.entries.concat([e]), nextId: s.nextId + 1, sheet: null, pick: null, tab: s.tab === 'week' || s.tab === 'profile' ? 'day' : s.tab, sub: null, dayOff: s.tab === 'day' ? s.dayOff : 0 });
+    this.showToast('Added ' + name + ' to ' + s.slot);
+  }
+  saveEdit() {
+    const s = this.state;
+    this.commit({ entries: s.entries.map((e) => e.id === s.editId ? Object.assign({}, e, { amt: s.qty, slot: s.slot }) : e), sheet: null, pick: null, editId: null });
+    this.showToast('Entry updated');
+  }
+  deleteEntry() {
+    const s = this.state;
+    this.commit({ entries: s.entries.filter((e) => e.id !== s.editId), sheet: null, pick: null, editId: null });
+    this.showToast('Entry deleted');
+  }
+  sync() {
+    const s = this.state; if (!s.health || s.syncing) return;
+    this.setState({ syncing: true });
+    this.timers.push(setTimeout(() => {
+      const st = this.state; const tk = this.dkey(this.today());
+      let weights = st.weights;
+      if (!weights.some((w) => w.date === tk)) {
+        const last = weights.length ? weights[weights.length - 1].v : 85.5;
+        weights = weights.concat([{ date: tk, v: Math.round((last - 0.1) * 10) / 10, time: '07:12' }]);
+      }
+      this.commit({ weights: weights, lastSync: Date.now(), syncing: false });
+      this.showToast('Synced with Apple Health');
+    }, 1300));
+  }
+
+  renderVals() {
+    const s = this.state, G = s.goals, t = this.today(), tk = this.dkey(t);
+    const C = { acc: '#2F5D46', c: '#B9823A', f: '#94658A', muted: '#5F6A63', track: '#E7E1D6', over: '#B9823A' };
+    const circ = 367.6;
+    const ringOf = (k) => (Math.min(1, k / G.k) * circ).toFixed(1) + ' ' + circ;
+    const macrosOf = (T) => [
+      { name: 'Protein', v: Math.round(T.p), g: G.p, w: Math.min(100, T.p / G.p * 100) + '%', col: C.acc },
+      { name: 'Carbs', v: Math.round(T.c), g: G.c, w: Math.min(100, T.c / G.c * 100) + '%', col: C.c },
+      { name: 'Fat', v: Math.round(T.f), g: G.f, w: Math.min(100, T.f / G.f * 100) + '%', col: C.f }
+    ];
+    const leftOf = (T) => { const l = G.k - T.k; return { n: this.fmt(Math.abs(l)), label: l >= 0 ? 'kcal left' : 'kcal over', col: l >= 0 ? C.acc : C.over }; };
+
+    // today
+    const TT = this.totals(tk); const tl = leftOf(TT);
+    const hr = new Date().getHours();
+    const greeting = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+
+    // weight
+    const ws = s.weights.slice().sort((a, b) => a.date < b.date ? -1 : 1);
+    const days = s.wRange === '1M' ? 30 : 90;
+    const cutoff = this.dkey(this.addDays(t, -days));
+    const inR = ws.filter((w) => w.date >= cutoff);
+    const small = this.chart(inR, 318, 96); const big = this.chart(inR, 318, 170);
+    const latest = ws.length ? ws[ws.length - 1] : null;
+    const ch = inR.length > 1 ? inR[inR.length - 1].v - inR[0].v : 0;
+    const latestSub = latest ? (latest.date === tk ? 'Today' : this.short(latest.date)) + ' · Apple Health' : 'No readings yet';
+    const ago = Math.round((Date.now() - s.lastSync) / 60000);
+    const agoLabel = ago < 1 ? 'Just now' : ago < 60 ? ago + ' min ago' : Math.round(ago / 60) + ' h ago';
+    const ranges = ['1M', '3M'].map((r) => ({ label: r, bg: s.wRange === r ? C.acc : '#EFEAE1', col: s.wRange === r ? '#FFFFFF' : '#1E2A23', pick: () => this.setState({ wRange: r }) }));
+    const wList = ws.slice(-14).reverse().map((w, i, arr) => {
+      const prev = arr[i + 1]; const d = prev ? w.v - prev.v : 0;
+      const dd = this.parse(w.date);
+      return { date: this.wd(dd.getDay()).slice(0, 3) + ' ' + dd.getDate() + ' ' + this.mon(dd.getMonth()), time: w.time, v: w.v.toFixed(1), delta: prev ? (d > 0 ? '+' : d < 0 ? '−' : '±') + Math.abs(d).toFixed(1) : '', dcol: d > 0 ? C.over : C.acc };
+    });
+
+    // last 7 days
+    const bars7 = []; let sum7 = 0, n7 = 0, hits7 = 0;
+    for (let i = 6; i >= 0; i--) {
+      const d = this.addDays(t, -i); const T = this.totals(this.dkey(d));
+      if (T.n) { sum7 += T.k; n7++; if (T.p >= G.p) hits7++; }
+      bars7.push({ h: Math.max(4, Math.round(Math.min(T.k, 2600) / 2600 * 54)) + 'px', col: i === 0 ? C.acc : T.k > G.k + 100 ? C.over : '#9DB5A6', label: 'SMTWTFS'[d.getDay()] });
+    }
+
+    // day
+    const dd = this.addDays(t, s.dayOff); const dk = this.dkey(dd); const DT = this.totals(dk); const dl = leftOf(DT);
+    const dayTitle = s.dayOff === 0 ? 'Today' : s.dayOff === -1 ? 'Yesterday' : dd.getDate() + ' ' + this.mon(dd.getMonth());
+    const slots = this.SLOTS.map((name) => {
+      const items = s.entries.filter((e) => e.date === dk && e.slot === name).sort((a, b) => a.time < b.time ? -1 : 1).map((e) => {
+        const m = this.macOf(e.kind, e.ref, e.amt);
+        const desc = e.kind === 'meal' && e.amt === 1 ? this.M[e.ref].desc : this.amtLabel(e.kind, e.ref, e.amt);
+        return { name: this.nameOf(e.kind, e.ref), detail: e.time + ' · ' + desc, k: this.fmt(m.k), p: Math.round(m.p),
+          edit: () => this.setState({ sheet: 'edit', editId: e.id, pick: { kind: e.kind, ref: e.ref }, qty: e.amt, slot: e.slot }) };
+      });
+      const st = items.length ? s.entries.filter((e) => e.date === dk && e.slot === name).reduce((a, e) => { const m = this.macOf(e.kind, e.ref, e.amt); a.k += m.k; a.p += m.p; return a; }, { k: 0, p: 0 }) : null;
+      return { name: name, items: items, sub: st ? this.fmt(st.k) + ' kcal · ' + Math.round(st.p) + ' g protein' : 'Nothing logged', addLabel: 'Add to ' + name, add: () => this.openLog(name) };
+    });
+
+    // week
+    const monday = this.addDays(t, -((t.getDay() + 6) % 7) + s.weekOff * 7);
+    const sunday = this.addDays(monday, 6);
+    const wkDays = []; for (let i = 0; i < 7; i++) wkDays.push(this.addDays(monday, i));
+    const maxK = Math.max(2600, G.k * 1.4);
+    let wSumK = 0, wSumP = 0, wSumC = 0, wSumF = 0, wN = 0, onT = 0, pHits = 0;
+    const wkBars = wkDays.map((d) => {
+      const k = this.dkey(d); const T = this.totals(k); const future = k > tk;
+      if (T.n && !future) { wSumK += T.k; wSumP += T.p; wSumC += T.c; wSumF += T.f; wN++; if (T.k <= G.k) onT++; if (T.p >= G.p) pHits++; }
+      const isToday = k === tk;
+      return { h: future || !T.n ? '128px' : Math.max(6, Math.round(Math.min(T.k, maxK) / maxK * 128)) + 'px',
+        col: future || !T.n ? 'transparent' : T.k > G.k + 100 ? C.over : C.acc,
+        border: future || !T.n ? '1.5px dashed #DCD4C6' : '0', label: 'MTWTFSS'[(d.getDay() + 6) % 7], fw: isToday ? '800' : '500' };
+    });
+    const wkDots = wkDays.map((d) => { const k = this.dkey(d); const T = this.totals(k); const hit = T.n && k <= tk && T.p >= G.p; return { bg: hit ? C.acc : 'transparent', border: hit ? '0' : '1.5px solid ' + (k > tk ? '#DCD4C6' : C.muted), label: 'MTWTFSS'[(d.getDay() + 6) % 7] }; });
+    const aK = wN ? wSumK / wN : 0, aP = wN ? wSumP / wN : 0, aC = wN ? wSumC / wN : 0, aF = wN ? wSumF / wN : 0;
+    const kp = aP * 4, kc = aC * 4, kf = aF * 9, kt = kp + kc + kf || 1;
+    const wkWs = ws.filter((w) => w.date >= this.dkey(monday) && w.date <= this.dkey(sunday));
+    const wkCh = wkWs.length > 1 ? wkWs[wkWs.length - 1].v - wkWs[0].v : null;
+    const diff = Math.round(aK - G.k);
+    const wkTiles = [
+      { label: 'Avg calories', val: wN ? this.fmt(aK) : '—', sub: wN ? (diff >= 0 ? '+' : '−') + Math.abs(diff) + ' a day vs ' + this.fmt(G.k) : 'No data', subCol: C.muted },
+      { label: 'Avg protein', val: wN ? Math.round(aP) + ' g' : '—', sub: 'target ' + G.p + ' g', subCol: C.muted },
+      { label: 'On calorie target', val: onT + ' / ' + wN, sub: 'days within budget', subCol: C.muted },
+      { label: 'Weight', val: wkCh === null ? '—' : (wkCh > 0 ? '+' : wkCh < 0 ? '−' : '') + Math.abs(wkCh).toFixed(1) + ' kg', sub: wkWs.length > 1 ? wkWs[0].v.toFixed(1) + ' → ' + wkWs[wkWs.length - 1].v.toFixed(1) + ' kg' : 'from Apple Health', subCol: C.acc }
+    ];
+    const weekTitle = s.weekOff === 0 ? 'This week' : s.weekOff === -1 ? 'Last week' : 'Week';
+    const weekRange = monday.getDate() + ' ' + this.mon(monday.getMonth()) + ' – ' + sunday.getDate() + ' ' + this.mon(sunday.getMonth());
+
+    // tabs
+    const tabDef = [
+      { id: 'home', name: 'Home', d: 'M4 11l8-7 8 7v9H4z' },
+      { id: 'day', name: 'Day', d: 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 10h16M9 3v4M15 3v4' },
+      { id: 'week', name: 'Week', d: 'M5 20V11M10 20V5M15 20v-7M20 20V9' },
+      { id: 'profile', name: 'Profile', d: 'M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM4 21a8 8 0 0 1 16 0' }
+    ].map((x) => ({ name: x.name, d: x.d, current: s.tab === x.id ? 'page' : 'false', col: s.tab === x.id ? C.acc : C.muted, fw: s.tab === x.id ? '700' : '500',
+      go: () => this.setState({ tab: x.id, sub: null, dayOff: x.id === 'day' && s.tab !== 'day' ? 0 : s.dayOff }) }));
+
+    // sheet
+    const pick = s.pick;
+    const q = s.q.trim().toLowerCase();
+    let listItems = [], offItems = [];
+    if (s.sheet === 'log' && !pick) {
+      const meals = Object.keys(this.M).map((id) => { const m = this.mealMac(id); return { name: this.M[id].name, sub: this.fmt(m.k) + ' kcal · ' + Math.round(m.p) + ' g protein · ' + this.M[id].desc, kind: 'meal', id: id }; });
+      const foodIds = s.custom.map((f) => f.id).reverse().concat(this.BASE);
+      const foods = foodIds.filter((id) => this.F[id]).map((id) => { const f = this.F[id]; const per = f.per === 1 ? '1 ' + f.unit : f.per + (f.unit === 'ml' ? 'ml' : 'g') + (f.dry ? ' dry' : ''); return { name: f.name, sub: (f.off ? (f.brand ? f.brand + ' · ' : '') : f.custom ? 'Your food · ' : '') + 'per ' + per + ' · ' + f.k + ' kcal · ' + f.p + ' g protein', kind: 'food', id: id }; });
+      const src = q ? meals.concat(foods) : (s.listTab === 'usuals' ? meals : s.listTab === 'foods' ? foods : []);
+      listItems = src.filter((x) => !q || x.name.toLowerCase().indexOf(q) >= 0).map((x) => ({ name: x.name, sub: x.sub, pick: () => this.setState({ pick: { kind: x.kind, ref: x.id }, qty: x.kind === 'meal' ? 1 : this.F[x.id].def }) }));
+      offItems = this.offSearch(q).filter((r) => !listItems.some((li) => li.name === r[1])).map((r) => ({
+        name: r[1], sub: [r[2], r[3]].filter((x) => x).join(' · ') + ' · ' + r[4] + ' kcal · ' + r[5] + ' g protein per 100g',
+        pick: () => { const fo = this.offFood(r); this.F[fo.id] = fo; this.setState({ pick: { kind: 'food', ref: fo.id }, qty: fo.def }); } }));
+    }
+    let pickName = '', pickSub = '', qtyLabel = '', qtyUnit = '', pickMacros = [], pickAfter = '';
+    if (pick) {
+      const m = this.macOf(pick.kind, pick.ref, s.qty);
+      pickName = this.nameOf(pick.kind, pick.ref);
+      if (pick.kind === 'quick') { pickSub = 'Quick add · ' + Math.round(pick.ref.k) + ' kcal each'; qtyLabel = String(s.qty); qtyUnit = s.qty === 1 ? 'serving' : 'servings'; }
+      else if (pick.kind === 'meal') { pickSub = this.M[pick.ref].desc + ' per serving'; qtyLabel = String(s.qty); qtyUnit = s.qty === 1 ? 'serving' : 'servings'; }
+      else if (this.F[pick.ref] && this.F[pick.ref].off) { const f = this.F[pick.ref]; pickSub = [f.brand, f.pack].filter((x) => x).join(' · ') + ' · ' + f.k + ' kcal per 100g' + (f.serving ? ' · 1 serving = ' + f.serving + 'g' : ''); qtyLabel = s.qty + 'g'; qtyUnit = 'grams'; }
+      else { const f = this.F[pick.ref]; pickSub = f.k + ' kcal per ' + (f.per === 1 ? f.unit : f.per + (f.unit === 'ml' ? 'ml' : 'g')) + (f.dry ? ' · weigh it dry, before cooking' : ''); qtyLabel = f.unit === 'g' || f.unit === 'ml' ? s.qty + f.unit : String(s.qty); qtyUnit = f.unit === 'g' ? (f.dry ? 'grams, dry' : 'grams') : f.unit === 'ml' ? 'millilitres' : f.unit + (s.qty !== 1 ? 's' : ''); }
+      pickMacros = [{ name: 'kcal', v: this.fmt(m.k), col: '#1E2A23' }, { name: 'protein', v: Math.round(m.p) + 'g', col: C.acc }, { name: 'carbs', v: Math.round(m.c) + 'g', col: '#1E2A23' }, { name: 'fat', v: Math.round(m.f) + 'g', col: '#1E2A23' }];
+      const baseT = s.sheet === 'edit' ? (() => { const e = s.entries.find((x) => x.id === s.editId); const old = e ? this.macOf(e.kind, e.ref, e.amt) : { k: 0, p: 0 }; const T = this.totals(e ? e.date : tk); return { k: T.k - old.k, p: T.p - old.p }; })() : this.totals(this.dkey(this.logDate()));
+      const afterK = G.k - (baseT.k + m.k); const afterP = baseT.p + m.p;
+      pickAfter = 'Afterwards: ' + this.fmt(Math.abs(afterK)) + ' kcal ' + (afterK >= 0 ? 'left' : 'over') + ' · ' + Math.round(afterP) + ' / ' + G.p + ' g protein';
+    }
+    const slotChips = this.SLOTS.map((n) => ({ name: n, bg: s.slot === n ? C.acc : '#FFFFFF', col: s.slot === n ? '#FFFFFF' : '#1E2A23', border: s.slot === n ? C.acc : '#E7E1D6', pick: () => this.setState({ slot: n }) }));
+    const listTabs = [{ id: 'usuals', name: 'Your meals' }, { id: 'foods', name: 'Foods' }, { id: 'products', name: 'UK products' }].map((x) => ({ name: x.name, bg: s.listTab === x.id ? '#FFFFFF' : 'transparent', fw: s.listTab === x.id ? '700' : '500', pick: () => this.setState({ listTab: x.id }) }));
+    const permDef = [{ id: 'w', name: 'Weight', mode: 'Read' }, { id: 'k', name: 'Dietary energy', mode: 'Write' }, { id: 'p', name: 'Protein, carbs, fat', mode: 'Write' }];
+    const permRows = permDef.map((x) => { const on = s.perm[x.id]; return { name: x.name, mode: x.mode, on: on ? 'true' : 'false', bg: on ? '#34A853' : '#D8D2C8', knob: on ? '23px' : '3px', toggle: () => this.setState({ perm: Object.assign({}, s.perm, { [x.id]: !on }) }) }; });
+
+    const goalDef = [{ id: 'k', name: 'Calories', step: 50, unit: ' kcal' }, { id: 'p', name: 'Protein', step: 5, unit: ' g' }, { id: 'c', name: 'Carbs', step: 5, unit: ' g' }, { id: 'f', name: 'Fat', step: 5, unit: ' g' }];
+    const goalRows = goalDef.map((x) => ({ name: x.name, val: this.fmt(G[x.id]) + x.unit, minusLabel: 'Lower ' + x.name, plusLabel: 'Raise ' + x.name,
+      minus: () => this.commit({ goals: Object.assign({}, G, { [x.id]: Math.max(x.step, G[x.id] - x.step) }) }),
+      plus: () => this.commit({ goals: Object.assign({}, G, { [x.id]: G[x.id] + x.step }) }) }));
+
+    return {
+      showHome: s.tab === 'home' && s.sub !== 'weight', showWeight: s.tab === 'home' && s.sub === 'weight',
+      showDay: s.tab === 'day', showWeek: s.tab === 'week', showProfile: s.tab === 'profile',
+      todayLong: this.wd(t.getDay()) + ', ' + t.getDate() + ' ' + ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][t.getMonth()],
+      greeting: greeting,
+      todayEatenLabel: this.fmt(TT.k) + ' of ' + this.fmt(G.k) + ' kcal', todayRing: ringOf(TT.k), todayRingCol: tl.col, todayLeft: tl.n, todayLeftLabel: tl.label, todayMacros: macrosOf(TT),
+      healthOn: !!s.health, healthOff: !s.health, syncLabel: s.syncing ? 'Syncing…' : 'Synced ' + agoLabel.toLowerCase(),
+      wLatest: latest ? latest.v.toFixed(1) : '—', wLatestSub: latestSub,
+      wChange: (ch > 0 ? '+' : ch < 0 ? '−' : '') + Math.abs(ch).toFixed(1) + ' kg', wRangeLabel: s.wRange === '1M' ? '30 days' : '90 days',
+      wPts: small.pts, wDotX: small.dx, wDotY: small.dy,
+      wBigPts: big.pts, wBigArea: big.area, wBigDotX: big.dx, wBigDotY: big.dy, wHi: big.hi.toFixed(1), wLo: big.lo.toFixed(1),
+      wFirstLabel: inR.length ? this.short(inR[0].date) : '', wLastLabel: inR.length ? this.short(inR[inR.length - 1].date) : '',
+      ranges: ranges, wList: wList,
+      onSync: () => this.sync(), openWeight: () => this.setState({ sub: 'weight' }), closeWeight: () => this.setState({ sub: null }),
+      openHealth: () => this.setState({ sheet: 'health' }),
+      avg7: n7 ? this.fmt(sum7 / n7) : '—', bars7: bars7, phits7: hits7 + '/' + n7,
+      dayWeekday: this.wd(dd.getDay()), dayTitle: dayTitle, dayNextCol: s.dayOff < 0 ? '#1E2A23' : '#C9C1B3',
+      dayPrev: () => this.setState({ dayOff: s.dayOff - 1 }), dayNext: () => { if (s.dayOff < 0) this.setState({ dayOff: s.dayOff + 1 }); },
+      dayEatenLabel: this.fmt(DT.k) + ' of ' + this.fmt(G.k) + ' kcal', dayRing: ringOf(DT.k), dayRingCol: dl.col, dayLeft: dl.n, dayLeftLabel: dl.label, dayMacros: macrosOf(DT), slots: slots,
+      weekTitle: weekTitle, weekRange: weekRange, weekNextCol: s.weekOff < 0 ? '#1E2A23' : '#C9C1B3',
+      weekPrev: () => this.setState({ weekOff: s.weekOff - 1 }), weekNext: () => { if (s.weekOff < 0) this.setState({ weekOff: s.weekOff + 1 }); },
+      wkTiles: wkTiles, wkBars: wkBars, wkTargetY: Math.round(G.k / maxK * 128) + 'px', goalKLabel: this.fmt(G.k),
+      wkSplit: [
+        { name: 'Protein', g: Math.round(aP), pct: Math.round(kp / kt * 100) + '%', w: (kp / kt * 100) + '%', col: C.acc },
+        { name: 'Carbs', g: Math.round(aC), pct: Math.round(kc / kt * 100) + '%', w: (kc / kt * 100) + '%', col: C.c },
+        { name: 'Fat', g: Math.round(aF), pct: Math.round(kf / kt * 100) + '%', w: (kf / kt * 100) + '%', col: C.f }
+      ],
+      wkDots: wkDots, proteinGoalLabel: 'Protein ≥' + G.p + ' g · ' + pHits + '/' + wN,
+      healthStatus: s.health ? 'Connected · last sync ' + agoLabel.toLowerCase() : 'Not connected',
+      switchBg: s.health ? '#34A853' : '#D8D2C8', switchKnob: s.health ? '23px' : '3px',
+      toggleHealth: () => { if (s.health) { this.commit({ health: false }); this.showToast('Apple Health disconnected'); } else this.setState({ sheet: 'health' }); },
+      goalRows: goalRows,
+      resetDemo: () => { try { window.localStorage.removeItem(this.KEY); } catch (e) { } this.setState(Object.assign(this.seed(), { form: null, tab: 'home', sub: null, dayOff: 0, weekOff: 0 })); this.showToast('Demo data reset'); },
+      tabsL: tabDef.slice(0, 2), tabsR: tabDef.slice(2),
+      openLogDefault: () => this.openLog(null),
+      goProfile: () => this.setState({ tab: 'profile', sub: null }), goWeek: () => this.setState({ tab: 'week', sub: null, weekOff: 0 }),
+      sheetOpen: !!s.sheet, closeSheet: () => this.setState({ sheet: null, pick: null, editId: null, form: null }),
+      showList: s.sheet === 'log' && !pick && !s.form, showForm: s.sheet === 'log' && !!s.form && !pick, showPick: (s.sheet === 'log' || s.sheet === 'edit') && !!pick, showHealth: s.sheet === 'health',
+      slot: s.slot, slotChips: slotChips, q: s.q, onQ: (e) => this.setState({ q: e.target.value }), listTabs: listTabs, listItems: listItems, listEmpty: s.sheet === 'log' && !pick && !s.form && !!q && listItems.length === 0 && offItems.length === 0 && s.offReady,
+      offItems: offItems, hasOff: offItems.length > 0,
+      offHint: s.sheet === 'log' && !pick && !s.form && !q && s.listTab === 'products',
+      offStatus: s.offError ? 'Product database couldn\'t load' : !s.offReady ? 'Loading UK products…' : this.fmt(this.OFF.length) + ' UK products from Open Food Facts',
+      offAttr: !!(pick && pick.kind === 'food' && this.F[pick.ref] && this.F[pick.ref].off),
+      offBarcode: pick && pick.kind === 'food' && this.F[pick.ref] && this.F[pick.ref].off ? 'Barcode ' + this.F[pick.ref].code : '',
+      openQuick: () => this.openForm('quick'), openCreate: () => this.openForm('create'), createFromSearch: () => this.openForm('create', s.q.trim()),
+      formBack: () => this.setState({ form: null }), saveForm: () => this.saveForm(),
+      isCreate: s.form === 'create',
+      formTitle: s.form === 'quick' ? 'Quick add' : 'Create a food',
+      formSub: s.form === 'quick' ? 'Log calories without picking a food. Good for meals out or a rough estimate.' : 'Saved to your foods so you can search for it next time.',
+      basisTabs: [{ id: '100g', name: 'Per 100 g' }, { id: 'serving', name: 'Per serving' }].map((x) => ({ name: x.name, bg: s.fBasis === x.id ? '#FFFFFF' : 'transparent', fw: s.fBasis === x.id ? '700' : '500', pick: () => this.setState({ fBasis: x.id }) })),
+      nameLabel: s.form === 'quick' ? 'Label (optional)' : 'Food name',
+      namePlaceholder: s.form === 'quick' ? 'e.g. Pub lunch' : 'e.g. Pork sausages',
+      kcalLabel: s.form === 'quick' ? 'Calories (kcal)' : (s.fBasis === '100g' ? 'Calories per 100 g' : 'Calories per serving'),
+      fName: s.fName, fK: s.fK, fP: s.fP, fC: s.fC, fF: s.fF,
+      onFName: (e) => this.setState({ fName: e.target.value }), onFK: (e) => this.setState({ fK: e.target.value }),
+      onFP: (e) => this.setState({ fP: e.target.value }), onFC: (e) => this.setState({ fC: e.target.value }), onFF: (e) => this.setState({ fF: e.target.value }),
+      formInvalid: !(this.num(s.fK) > 0 && (s.form === 'quick' || s.fName.trim().length > 0)) ? 'true' : 'false',
+      formCtaBg: this.num(s.fK) > 0 && (s.form === 'quick' || s.fName.trim().length > 0) ? '#2F5D46' : '#A9B8AE',
+      formCtaLabel: s.form === 'quick' ? 'Add to ' + s.slot : 'Save and log',
+      formPreview: s.form === 'quick'
+        ? (this.num(s.fK) > 0 ? (() => { const T = this.totals(this.dkey(this.logDate())); const l = G.k - T.k - this.num(s.fK); return 'Afterwards: ' + this.fmt(Math.abs(l)) + ' kcal ' + (l >= 0 ? 'left' : 'over') + ' · ' + Math.round(T.p + this.num(s.fP)) + ' / ' + G.p + ' g protein'; })() : 'Enter calories to continue')
+        : (s.fName.trim() && this.num(s.fK) > 0 ? 'You can set the amount on the next screen' : 'A name and calories are needed'),
+      pickBack: () => { if (s.sheet === 'edit') this.setState({ sheet: null, pick: null, editId: null }); else this.setState({ pick: null }); },
+      pickBackLabel: s.sheet === 'edit' ? 'Close' : 'Back', pickSlotLabel: (s.sheet === 'edit' ? 'Editing · ' : '') + s.slot,
+      pickName: pickName, pickSub: pickSub, qtyLabel: qtyLabel, qtyUnit: qtyUnit, pickMacros: pickMacros, pickAfter: pickAfter,
+      qtyMinus: () => this.stepQty(-1), qtyPlus: () => this.stepQty(1),
+      pickCta: () => { if (s.sheet === 'edit') this.saveEdit(); else this.addPicked(); },
+      pickCtaLabel: s.sheet === 'edit' ? 'Save changes' : 'Add to ' + s.slot,
+      showDelete: s.sheet === 'edit', deleteEntry: () => this.deleteEntry(),
+      permRows: permRows,
+      allowHealth: () => { this.commit({ health: true, sheet: null }); this.showToast('Apple Health connected'); this.timers.push(setTimeout(() => this.sync(), 300)); },
+      toastOn: !!s.toast, toast: s.toast || ''
+    };
+  }
+}
+</script>
+</body>
+</html>

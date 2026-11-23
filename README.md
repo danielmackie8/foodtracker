@@ -1,0 +1,73 @@
+# Sage — food tracker for iPhone
+
+A personal, native iPhone food tracker built in SwiftUI. You log food quickly, see Day and Week dashboards, and your weight is read from Apple Health. The "Sage Graphite" design is in `docs/HANDOFF.md`, and the original prototype is in `docs/Prototype.dc.html`.
+
+**Requirements:** a Mac with **Xcode 16 or later**, and an iPhone on **iOS 17 or later**.
+
+## Run it on your iPhone
+
+1. Clone the repo on your Mac and open **`Sage.xcodeproj`**.
+2. Select the **Sage** target, then open **Signing & Capabilities**:
+   - **Team:** pick your Apple ID. If it isn't listed, add it in Xcode › Settings › Accounts.
+   - **Bundle Identifier:** if Xcode says `com.sagegraphite.foodtracker` is taken, change it to something unique, such as `com.<yourname>.sage`.
+   - **HealthKit** should already be listed, because it comes from `Sage.entitlements`.
+3. Plug in your iPhone (or pair it over Wi‑Fi), select it as the run destination, and press **⌘R**.
+   - The first time, iOS asks you to trust the developer. On the iPhone, go to Settings › General › VPN & Device Management and trust your Apple ID.
+   - Also turn on **Developer Mode** (Settings › Privacy & Security › Developer Mode) if iOS asks for it.
+4. In the app, open **Profile** and switch on **Apple Health**. In the system sheet that appears, allow *Weight* (read) and *Dietary Energy, Protein, Carbohydrates, Total Fat* (write).
+
+> With a free Apple ID, apps you install yourself expire after 7 days, and you re-run them from Xcode to renew. A paid Apple Developer account ($99/yr) extends this to a year, and you can install through TestFlight.
+
+The Simulator also works, including HealthKit: add a weight in the Simulator's Health app. The camera scanner needs a real device, but you can type the barcode number instead.
+
+## What's in it
+
+| Screen | What it does |
+|---|---|
+| **Home** | Greeting, Today card (calorie ring and protein/carbs/fat bars), Weight card (latest reading, change over the range, chart, 1M/3M, Sync, All readings), Last 7 days card (bars and days protein was hit). |
+| **Weight** | Large chart, range toggle, every reading with its day‑to‑day change. |
+| **Day** | Previous/next day (or swipe), summary ring, Breakfast/Lunch/Snack/Dinner cards with a **+** on each. Tap an entry to change its amount or slot, or to delete it. |
+| **Week** | Monday–Sunday navigation, tiles (average kcal, average protein, days on target, weight change), daily bars against a dashed target line, average macro split, and dots for days protein was hit. |
+| **Profile** | Apple Health switch, with read/write toggles and goal steppers (default 1,800 kcal · 150 g P · 170 g C · 60 g F). |
+| **Log sheet** (centre **+**) | Slot chips; one search box for meals, foods, brands and barcodes; barcode scanner; Quick add; Create a food (per 100 g or per serving); tabs for Your meals / Foods / UK products. The amount screen has a stepper (you can also tap the number to type it), live macros, and an "Afterwards: X kcal left · Y/150 g protein" line. |
+
+Content rules from the handoff are built in. Pasta, rice and oats are logged as **dry** weight. Your usual meals are pre-loaded. There is no fish or seafood.
+
+## How it works
+
+```
+Sage/
+├── SageApp.swift              App entry, SwiftData container, seeds built-in foods & meals
+├── AppState.swift             Tab/day/week navigation, goals & Health settings (UserDefaults), toasts,
+│                              EntryActions (add/update/delete + mirror to Apple Health)
+├── Model/
+│   ├── Models.swift           SwiftData: Food, Meal, Entry, WeightReading; Goals
+│   ├── Nutrition.swift        Macros, Catalog (entry → nutrition), Ledger (per-day totals), DayKey dates
+│   └── SeedData.swift         Built-in foods and usual meals
+├── Services/
+│   ├── HealthKitManager.swift Reads body mass; writes energy/protein/carbs/fat per entry
+│   └── OpenFoodFacts.swift    Bundled UK catalogue (off-uk.json), live barcode + search API, disk cache
+├── Theme/Theme.swift          Sage Graphite colours, Manrope fonts, card/button styles
+├── Views/                     Home, Weight, Day, Week, Profile, Log sheet, shared components
+└── Resources/                 off-uk.json (671 UK products), Manrope (OFL)
+```
+
+- **Storage:** everything is kept on the device with SwiftData. Nothing goes to a server.
+- **Apple Health, weight:** the app syncs automatically when it opens (at most every 15 minutes), and whenever you tap **Sync**. It reads the last year of body-mass samples. A reading you delete in Health also disappears from the app.
+- **Apple Health, nutrition:** each entry is written as four samples (energy, protein, carbs and fat) that share a sync identifier based on the entry's ID. When you edit an entry, its samples are replaced. When you delete it, they're removed. You can turn this off in Profile.
+- **Open Food Facts:**
+  - The 671 bundled UK products can be searched offline as you type.
+  - Pressing *Search* (or tapping "Search all UK products") queries the live API. A client-side limit keeps this under 10 searches a minute, and results are cached.
+  - Barcodes are looked up in this order: bundled data, then the disk cache, then `GET /api/v2/product/{code}.json`.
+  - A product you log is saved as a Food, so it keeps working offline.
+  - Every product shows its barcode and an ODbL credit.
+  - The User-Agent is `SageFoodTracker/1.0`. If you'd like Open Food Facts to be able to contact you, add an email address to it in `OpenFoodFacts.swift`.
+- **Barcode scanning:** uses VisionKit `DataScannerViewController` and reads EAN-13, EAN-8, UPC-E, Code 128 and ITF-14.
+
+## Notes
+
+- `Sage.xcodeproj` uses Xcode 16's folder-synced groups, so any file you add under `Sage/` is picked up automatically. If you're on an older Xcode, regenerate the project with [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen && xcodegen`.
+- The app is light-mode only, to match the design.
+- Built-in foods are defined in `SeedData.swift`. New built-ins are added on the next launch, and existing data is never overwritten.
+- Fonts: Manrope © The Manrope Project Authors, under the SIL Open Font License (`Sage/Resources/Fonts/OFL.txt`).
+- Product data: © Open Food Facts contributors, under the [ODbL](https://opendatacommons.org/licenses/odbl/1-0/).
