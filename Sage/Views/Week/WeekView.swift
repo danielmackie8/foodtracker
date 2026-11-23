@@ -76,9 +76,9 @@ private struct WeekContent: View {
                     StatTile(label: "Weight", value: weightChange, sub: weightSub, subColor: Theme.accent)
                 }
 
-                if app.healthEnabled { WeekActivityCard(monday: monday, steps: steps) }
-
                 CaloriesChartCard(days: days.map { (date: $0.date, totals: $0.totals, future: $0.future, isToday: $0.isToday) }, goal: goals.kcal)
+
+                if app.healthEnabled { WeekActivityCard(monday: monday, steps: steps) }
 
                 MacroSplitCard(avg: avg, hasData: !logged.isEmpty,
                                dots: days.map { (date: $0.date, hit: !$0.future && $0.totals.count > 0 && $0.totals.macros.p >= goals.p, future: $0.future) },
