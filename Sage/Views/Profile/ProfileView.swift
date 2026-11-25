@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct ProfileView: View {
     @Environment(AppState.self) private var app
@@ -86,6 +87,8 @@ struct ProfileView: View {
                 }
                 .card()
 
+                LogWithClaudeCard()
+
                 Text("Product data from Open Food Facts, available under the Open Database Licence (ODbL).")
                     .font(.manrope(12)).foregroundStyle(Theme.muted)
                     .multilineTextAlignment(.center)
@@ -140,5 +143,62 @@ private struct GoalRow: View {
         }
         .frame(minHeight: 52)
         .sensoryFeedback(.selection, trigger: value)
+    }
+}
+
+/// How to log food Claude estimates: set-up text to copy into a Claude project.
+private struct LogWithClaudeCard: View {
+    @Environment(AppState.self) private var app
+    @State private var showSteps = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles").foregroundStyle(Theme.accent)
+                Text("Log with Claude").font(.manrope(17, .bold))
+            }
+            Text("Tell Claude what you ate. It replies with an Add to Sage link and a code block. Tap the link, or copy the code block and use From Claude › Paste in the log sheet.")
+                .font(.manrope(13, .medium)).foregroundStyle(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button {
+                    UIPasteboard.general.string = ClaudeImport.claudeInstructions
+                    app.showToast("Instructions copied")
+                } label: {
+                    Label("Copy instructions", systemImage: "doc.on.doc")
+                        .font(.manrope(14, .bold))
+                        .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(PressableStyle())
+                Button { withAnimation(.snappy) { showSteps.toggle() } } label: {
+                    Text(showSteps ? "Hide set-up" : "How to set up")
+                        .font(.manrope(14, .bold))
+                        .foregroundStyle(Theme.accent)
+                        .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
+                        .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(PressableStyle())
+            }
+            if showSteps {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array([
+                        "Tap Copy instructions.",
+                        "In the Claude app, create a project called Sage and paste them into its instructions.",
+                        "Start chats about food in that project, e.g. “Wagamama chicken katsu curry for dinner”.",
+                        "Tap Add to Sage in the reply, or copy the code block and paste it in Sage’s log sheet.",
+                    ].enumerated()), id: \.offset) { i, step in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("\(i + 1).").font(.manrope(13, .bold)).foregroundStyle(Theme.accent)
+                            Text(step).font(.manrope(13, .medium))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+        .card()
     }
 }

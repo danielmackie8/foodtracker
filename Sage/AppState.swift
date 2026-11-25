@@ -18,6 +18,8 @@ struct LogRequest: Identifiable {
     var slot: Slot
     var date: String
     var editing: Entry?
+    /// Food estimated by Claude, opened from a sage:// link.
+    var imported: ClaudeImport? = nil
 }
 
 /// UI state plus persisted settings (goals, Health toggles).
@@ -87,6 +89,11 @@ final class AppState {
 
     func openLog(slot: Slot? = nil) {
         logRequest = LogRequest(slot: slot ?? .suggested(), date: logDateKey)
+    }
+
+    /// Opens the log sheet on Claude's estimate (from a sage:// link).
+    func openImport(_ payload: ClaudeImport) {
+        logRequest = LogRequest(slot: payload.slot ?? .suggested(), date: payload.date ?? logDateKey, imported: payload)
     }
 
     func openEdit(_ entry: Entry) {

@@ -199,6 +199,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Sage-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Sage;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Sage uses the camera to scan barcodes on food packs.";
@@ -236,6 +237,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Sage-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Sage;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Sage uses the camera to scan barcodes on food packs.";

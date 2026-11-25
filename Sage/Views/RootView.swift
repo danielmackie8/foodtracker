@@ -39,6 +39,13 @@ struct RootView: View {
                 .presentationCornerRadius(28)
                 .presentationBackground(Theme.background)
         }
+        .onOpenURL { url in
+            if let payload = ClaudeImport.parse(url: url) {
+                app.openImport(payload)
+            } else {
+                app.showToast("That link didn't contain any food")
+            }
+        }
         .task { _ = await ProductDatabase.shared.prepare() }
         .task { await syncWeightIfNeeded() }
         .onChange(of: scenePhase) { _, phase in

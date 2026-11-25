@@ -7,6 +7,7 @@ enum LogRoute: Hashable {
     case product(OFFProduct)
     case quickAdd
     case createFood(String)
+    case imported(ClaudeImport)
 }
 
 /// The log sheet: search + lists, then the amount screen.
@@ -34,7 +35,9 @@ struct LogSheet: View {
 
         NavigationStack(path: $path) {
             Group {
-                if let entry = request.editing {
+                if let payload = request.imported {
+                    ImportReviewView(payload: payload, defaultDate: request.date, catalog: catalog, slot: $slot)
+                } else if let entry = request.editing {
                     AmountView(target: AmountTarget(entry: entry, catalog: catalog), editing: entry,
                                catalog: catalog, baseTotals: dayTotals - catalog.macros(of: entry),
                                date: request.date, slot: $slot)
@@ -58,6 +61,8 @@ struct LogSheet: View {
                                catalog: catalog, baseTotals: dayTotals, date: request.date, slot: $slot)
                 case .quickAdd:
                     FoodFormView(mode: .quick, slot: $slot, date: request.date, baseTotals: dayTotals, catalog: catalog) { _ in }
+                case .imported(let payload):
+                    ImportReviewView(payload: payload, defaultDate: request.date, catalog: catalog, slot: $slot)
                 case .createFood(let name):
                     FoodFormView(mode: .create(name), slot: $slot, date: request.date, baseTotals: dayTotals, catalog: catalog) { food in
                         path.removeLast()
@@ -117,6 +122,7 @@ private struct LogListView: View {
     @State private var remoteQuery = ""
     @State private var remoteState: RemoteState = .idle
     @State private var scanning = false
+    @State private var pasteFailed = false
     @FocusState private var searchFocused: Bool
 
     enum RemoteState: Equatable { case idle, loading, failed(String) }
@@ -219,6 +225,18 @@ private struct LogListView: View {
                 HStack(spacing: 8) {
                     ActionChip(title: "Quick add", icon: "bolt.fill") { path.append(.quickAdd) }
                     ActionChip(title: "Create a food", icon: "plus") { path.append(.createFood("")) }
+                }
+                FromClaudeRow { text in
+                    if let payload = ClaudeImport.parse(text) {
+                        path.append(.imported(payload))
+                    } else {
+                        pasteFailed = true
+                    }
+                }
+                .alert("Nothing to add", isPresented: $pasteFailed) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text("Copy Claude's code block (or its Add to Sage link) first, then tap Paste.")
                 }
                 PillPicker(options: [(ListTab.usuals, "Your meals"), (.foods, "Foods"), (.products, "UK products")], selection: $tab)
             }
@@ -430,5 +448,34 @@ private struct ResultRow: View {
             .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
         }
         .buttonStyle(PressableStyle())
+    }
+}
+
+/// "From Claude" row: the system Paste button reads Claude's copied reply without a permission prompt.
+private struct FromClaudeRow: View {
+    var onPaste: (String) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("From Claude").font(.manrope(14, .bold)).foregroundStyle(Theme.accent)
+                Text("Copy Claude's estimate, then paste").font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+            }
+            Spacer()
+            PasteButton(payloadType: String.self) { strings in
+                guard let text = strings.first else { return }
+                Task { @MainActor in onPaste(text) }
+            }
+            .labelStyle(.titleAndIcon)
+            .buttonBorderShape(.capsule)
+            .tint(Theme.accent)
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 56)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
     }
 }
