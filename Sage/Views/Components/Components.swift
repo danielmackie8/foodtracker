@@ -161,8 +161,10 @@ struct PillPicker<T: Hashable>: View {
                 Button { withAnimation(.snappy(duration: 0.2)) { selection = value } } label: {
                     Text(label)
                         .font(.manrope(13, on ? .bold : .medium))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                         .foregroundStyle(filled && on ? Color.white : Theme.text)
-                        .padding(.horizontal, 14)
+                        .padding(.horizontal, filled ? 14 : 6)
                         .frame(minWidth: filled ? 48 : 0, maxWidth: filled ? nil : .infinity, minHeight: filled ? 34 : 36)
                         .background(
                             Capsule().fill(filled ? (on ? Theme.accent : Theme.chip) : (on ? Color.white : .clear))

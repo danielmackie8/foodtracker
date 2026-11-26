@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 enum LogRoute: Hashable {
     case meal(String)
@@ -20,7 +21,7 @@ struct LogSheet: View {
     @Query private var foods: [Food]
     @Query(sort: \Meal.sortIndex) private var meals: [Meal]
     @Query private var dayEntries: [Entry]
-    @Query private var yesterdayEntries: [Entry]
+    @Query private var recentEntries: [Entry]
 
     @State private var path: [LogRoute] = []
     @State private var slot: Slot
@@ -29,8 +30,14 @@ struct LogSheet: View {
         self.request = request
         let day = request.date
         _dayEntries = Query(filter: #Predicate<Entry> { $0.date == day })
-        let previous = DayKey.key(DayKey.add(-1, to: DayKey.date(day)))
-        _yesterdayEntries = Query(filter: #Predicate<Entry> { $0.date == previous }, sort: \Entry.time)
+        // The 5 days before the day being logged, newest first.
+        let base = DayKey.date(day)
+        let d1 = DayKey.key(DayKey.add(-1, to: base)), d2 = DayKey.key(DayKey.add(-2, to: base))
+        let d3 = DayKey.key(DayKey.add(-3, to: base)), d4 = DayKey.key(DayKey.add(-4, to: base))
+        let d5 = DayKey.key(DayKey.add(-5, to: base))
+        _recentEntries = Query(
+            filter: #Predicate<Entry> { $0.date == d1 || $0.date == d2 || $0.date == d3 || $0.date == d4 || $0.date == d5 },
+            sort: [SortDescriptor(\Entry.date, order: .reverse), SortDescriptor(\Entry.time, order: .reverse)])
         _slot = State(initialValue: request.slot)
     }
 
@@ -47,7 +54,7 @@ struct LogSheet: View {
                                catalog: catalog, baseTotals: dayTotals - catalog.macros(of: entry),
                                date: request.date, slot: $slot)
                 } else {
-                    LogListView(foods: foods, meals: meals, catalog: catalog, yesterday: yesterdayEntries,
+                    LogListView(foods: foods, meals: meals, catalog: catalog, recent: recentEntries,
                                 date: request.date, slot: $slot, path: $path)
                 }
             }
@@ -116,13 +123,14 @@ struct SlotChips: View {
 
 // MARK: - Search & lists
 
-private enum ListTab: Hashable { case yesterday, usuals, foods, products }
+private enum ListTab: Hashable { case recent, meals, foods, scan }
 
 private struct LogListView: View {
     var foods: [Food]
     var meals: [Meal]
     var catalog: Catalog
-    var yesterday: [Entry]
+    /// Entries from the 5 days before `date`, newest first.
+    var recent: [Entry]
     var date: String
     @Binding var slot: Slot
     @Binding var path: [LogRoute]
@@ -145,16 +153,16 @@ private struct LogListView: View {
 
     enum RemoteState: Equatable { case idle, loading, failed(String) }
 
-    init(foods: [Food], meals: [Meal], catalog: Catalog, yesterday: [Entry], date: String,
+    init(foods: [Food], meals: [Meal], catalog: Catalog, recent: [Entry], date: String,
          slot: Binding<Slot>, path: Binding<[LogRoute]>) {
         self.foods = foods
         self.meals = meals
         self.catalog = catalog
-        self.yesterday = yesterday
+        self.recent = recent
         self.date = date
         _slot = slot
         _path = path
-        _tab = State(initialValue: yesterday.isEmpty ? .usuals : .yesterday)
+        _tab = State(initialValue: recent.isEmpty ? .meals : .recent)
     }
 
     private static let builtinOrder: [String: Int] = Dictionary(uniqueKeysWithValues: SeedData.foods().enumerated().map { ($1.id, $0) })
@@ -207,6 +215,9 @@ private struct LogListView: View {
                 .presentationCornerRadius(28)
                 .presentationBackground(Theme.background)
         }
+        .onChange(of: tab) { _, new in
+            if new == .scan { scanning = true }
+        }
         .fullScreenCover(isPresented: $scanning) {
             BarcodeScannerSheet { code in
                 scanning = false
@@ -256,21 +267,14 @@ private struct LogListView: View {
             if q.isEmpty {
                 HStack(spacing: 8) {
                     ActionChip(title: "Quick add", icon: "bolt.fill") { path.append(.quickAdd) }
-                    ActionChip(title: "Create a food", icon: "plus") { path.append(.createFood("")) }
-                }
-                FromClaudeRow { text in
-                    if let payload = ClaudeImport.parse(text) {
-                        path.append(.imported(payload))
-                    } else {
-                        pasteFailed = true
-                    }
+                    ActionChip(title: "From Claude", icon: "sparkles") { pasteFromClaude() }
                 }
                 .alert("Nothing to add", isPresented: $pasteFailed) {
                     Button("OK", role: .cancel) {}
                 } message: {
-                    Text("Copy Claude's code block (or its Add to Sage link) first, then tap Paste.")
+                    Text("In Claude, tap Copy on the code block (or copy the Add to Sage link), then tap From Claude.")
                 }
-                PillPicker(options: [(ListTab.yesterday, "Yesterday"), (.usuals, "Your meals"), (.foods, "Foods"), (.products, "UK")],
+                PillPicker(options: [(ListTab.recent, "Recent"), (.meals, "Meals"), (.foods, "Foods"), (.scan, "Scan")],
                            selection: $tab)
             }
         }
@@ -284,16 +288,25 @@ private struct LogListView: View {
     @ViewBuilder private var results: some View {
         if q.isEmpty {
             switch tab {
-            case .yesterday:
-                yesterdayList
-            case .usuals:
+            case .recent:
+                recentList
+            case .meals:
                 mealsList
             case .foods:
+                Button { path.append(.createFood("")) } label: {
+                    Label("Create a food", systemImage: "plus")
+                        .font(.manrope(14, .bold))
+                        .foregroundStyle(Theme.accent)
+                        .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
+                        .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(PressableStyle())
+                .padding(.top, 4).padding(.bottom, 4)
                 ForEach(sortedFoods) { f in
                     ResultRow(name: f.name, sub: foodSubtitle(f), action: { path.append(.food(f.id)) },
                               onAdd: { add(food: f) })
                 }
-            case .products:
+            case .scan:
                 productsHint
             }
         } else {
@@ -331,56 +344,72 @@ private struct LogListView: View {
         }
     }
 
-    // MARK: Yesterday
+    // MARK: Recent
 
-    @ViewBuilder private var yesterdayList: some View {
-        if yesterday.isEmpty {
-            Text("Nothing logged yesterday.")
+    /// Everything from the last 5 days, each item once (most recent first).
+    private struct RecentItem: Identifiable {
+        let entry: Entry
+        var times: Int
+        var id: UUID { entry.id }
+    }
+
+    private var recentUnique: [RecentItem] {
+        var seen: [String: Int] = [:]
+        var out: [RecentItem] = []
+        for e in recent {
+            let key = "\(e.kindRaw)|\(e.ref)|\(e.amount)|\(e.quickKcal ?? 0)"
+            if let i = seen[key] { out[i].times += 1 } else { seen[key] = out.count; out.append(RecentItem(entry: e, times: 1)) }
+        }
+        return out
+    }
+
+    @ViewBuilder private var recentList: some View {
+        let items = recentUnique
+        if items.isEmpty {
+            Text("Nothing logged in the last 5 days.")
                 .font(.manrope(14)).foregroundStyle(Theme.muted)
                 .frame(maxWidth: .infinity, minHeight: 120)
         } else {
-            let prevDate = DayKey.add(-1, to: DayKey.date(date))
-            Text("YESTERDAY · \(prevDate.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)).uppercased())")
-                .font(.manrope(11, .heavy)).tracking(0.8).foregroundStyle(Theme.muted)
-                .padding(.top, 6).padding(.bottom, 2)
-            ForEach(Slot.allCases) { s in
-                let items = yesterday.filter { $0.slot == s }
-                if !items.isEmpty {
-                    Text(s.rawValue.uppercased())
-                        .font(.manrope(11, .bold)).tracking(0.6).foregroundStyle(Theme.accent)
-                        .padding(.top, 14)
-                    ForEach(items) { e in
-                        let m = catalog.macros(of: e)
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(catalog.name(of: e)).font(.manrope(15, .semibold)).lineLimit(2)
-                                Text("\(m.kcal.kcalString) kcal · \(m.p.grams) g P · \(catalog.amountLabel(of: e))")
-                                    .font(.manrope(12, .medium)).foregroundStyle(Theme.muted).lineLimit(1)
-                            }
-                            Spacer(minLength: 8)
-                            Button { copy([e]) } label: {
-                                Label("Add", systemImage: "plus")
-                                    .font(.manrope(13, .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 14)
-                                    .frame(minHeight: 34)
-                                    .background(Theme.accent, in: Capsule())
-                                    .frame(minHeight: Theme.minTouch)
-                            }
-                            .buttonStyle(PressableStyle())
-                            .accessibilityLabel("Add \(catalog.name(of: e)) to \(slot.rawValue)")
-                        }
-                        .padding(.vertical, 6)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
-                    }
-                }
-            }
-            let sameSlot = yesterday.filter { $0.slot == slot }
+            let yesterdayKey = DayKey.key(DayKey.add(-1, to: DayKey.date(date)))
+            let sameSlot = recent.filter { $0.date == yesterdayKey && $0.slot == slot }.reversed().map { $0 }
             if sameSlot.count > 1 {
-                Button("Repeat all of yesterday's \(slot.rawValue.lowercased())") { copy(sameSlot) }
-                    .buttonStyle(PrimaryButtonStyle())
-                    .padding(.top, 18)
+                Button { copy(sameSlot) } label: {
+                    Label("Repeat yesterday's \(slot.rawValue.lowercased()) · \(sameSlot.count) items", systemImage: "arrow.uturn.forward")
+                        .font(.manrope(14, .bold))
+                        .foregroundStyle(Theme.accent)
+                        .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
+                        .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(PressableStyle())
+                .padding(.top, 4).padding(.bottom, 4)
             }
+            ForEach(items) { item in
+                let e = item.entry
+                let m = catalog.macros(of: e)
+                ResultRow(name: catalog.name(of: e),
+                          sub: "\(m.kcal.kcalString) kcal · \(m.p.grams) g P · \(whenLabel(e))\(item.times > 1 ? " · ×\(item.times)" : "")",
+                          action: {
+                              if e.kind == .meal, let meal = catalog.meals[e.ref] { breakdownMeal = meal } else { copy([e]) }
+                          },
+                          onAdd: { copy([e]) })
+            }
+        }
+    }
+
+    /// "Yesterday lunch", "Mon dinner"
+    private func whenLabel(_ e: Entry) -> String {
+        let yesterdayKey = DayKey.key(DayKey.add(-1, to: DayKey.date(date)))
+        let day = e.date == yesterdayKey ? "Yesterday" : DayKey.date(e.date).formatted(.dateTime.weekday(.abbreviated))
+        return "\(day) \(e.slot.rawValue.lowercased())"
+    }
+
+    private func pasteFromClaude() {
+        // Reading the clipboard shows iOS's "Allow Paste" prompt unless Sage is set to
+        // Allow in Settings › Apps › Sage › Paste from Other Apps.
+        if let text = UIPasteboard.general.string, let payload = ClaudeImport.parse(text) {
+            path.append(.imported(payload))
+        } else {
+            pasteFailed = true
         }
     }
 
@@ -520,13 +549,13 @@ private struct LogListView: View {
     private var productsHint: some View {
         VStack(spacing: 8) {
             Image(systemName: "barcode.viewfinder").font(.system(size: 30)).foregroundStyle(Theme.accent)
-            Text("Search any UK product").font(.manrope(16, .bold))
-            Text("Type a brand and product, like “Tesco 5% mince”, or scan the barcode on the pack.")
+            Text("Scan a barcode").font(.manrope(16, .bold))
+            Text("Point the camera at the barcode on the pack. You can also search above for any UK product, like “Tesco 5% mince”.")
                 .font(.manrope(14)).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
             Button {
                 scanning = true
             } label: {
-                Label("Scan a barcode", systemImage: "barcode.viewfinder")
+                Label("Open the scanner", systemImage: "camera.fill")
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.top, 6)
@@ -645,34 +674,6 @@ private struct ResultRow: View {
     }
 }
 
-/// "From Claude" row: the system Paste button reads Claude's copied reply without a permission prompt.
-private struct FromClaudeRow: View {
-    var onPaste: (String) -> Void
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Theme.accent)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("From Claude").font(.manrope(14, .bold)).foregroundStyle(Theme.accent)
-                Text("Copy Claude's estimate, then paste").font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
-            }
-            Spacer()
-            PasteButton(payloadType: String.self) { strings in
-                guard let text = strings.first else { return }
-                Task { @MainActor in onPaste(text) }
-            }
-            .labelStyle(.titleAndIcon)
-            .buttonBorderShape(.capsule)
-            .tint(Theme.accent)
-        }
-        .padding(.horizontal, 14)
-        .frame(minHeight: 56)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
-    }
-}
 
 /// Pop-up breakdown of a meal: each food with its amount and calories, servings, and Add.
 private struct MealBreakdownSheet: View {
