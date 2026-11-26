@@ -123,7 +123,7 @@ struct SlotChips: View {
 
 // MARK: - Search & lists
 
-private enum ListTab: Hashable { case recent, meals, foods, scan }
+private enum ListTab: Hashable { case recent, meals, foods }
 
 private struct LogListView: View {
     var foods: [Food]
@@ -215,9 +215,6 @@ private struct LogListView: View {
                 .presentationCornerRadius(28)
                 .presentationBackground(Theme.background)
         }
-        .onChange(of: tab) { _, new in
-            if new == .scan { scanning = true }
-        }
         .fullScreenCover(isPresented: $scanning) {
             BarcodeScannerSheet { code in
                 scanning = false
@@ -274,7 +271,7 @@ private struct LogListView: View {
                 } message: {
                     Text("In Claude, tap Copy on the code block (or copy the Add to Sage link), then tap From Claude.")
                 }
-                PillPicker(options: [(ListTab.recent, "Recent"), (.meals, "Meals"), (.foods, "Foods"), (.scan, "Scan")],
+                PillPicker(options: [(ListTab.recent, "Recent"), (.meals, "Meals"), (.foods, "Foods")],
                            selection: $tab)
             }
         }
@@ -306,8 +303,6 @@ private struct LogListView: View {
                     ResultRow(name: f.name, sub: foodSubtitle(f), action: { path.append(.food(f.id)) },
                               onAdd: { add(food: f) })
                 }
-            case .scan:
-                productsHint
             }
         } else {
             let matchedMeals = meals.filter { $0.name.lowercased().contains(q) }
@@ -544,27 +539,6 @@ private struct LogListView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 16)
-    }
-
-    private var productsHint: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "barcode.viewfinder").font(.system(size: 30)).foregroundStyle(Theme.accent)
-            Text("Scan a barcode").font(.manrope(16, .bold))
-            Text("Point the camera at the barcode on the pack. You can also search above for any UK product, like “Tesco 5% mince”.")
-                .font(.manrope(14)).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
-            Button {
-                scanning = true
-            } label: {
-                Label("Open the scanner", systemImage: "camera.fill")
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.top, 6)
-            Text("\((ProductDatabase.meta?.count ?? 0).formatted()) UK products available offline · newer ones from Open Food Facts online")
-                .font(.manrope(12, .medium)).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
-                .padding(.top, 4)
-        }
-        .padding(.vertical, 28)
-        .padding(.horizontal, 8)
     }
 
     private func foodSubtitle(_ f: Food) -> String {
