@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(HealthKitManager.self) private var health
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(CloudSync.self) private var cloud
 
     var body: some View {
         @Bindable var app = app
@@ -50,6 +51,18 @@ struct RootView: View {
         .task { app.checkClipboardForClaude() }
         .task { _ = await ProductDatabase.shared.prepare() }
         .task { await syncWeightIfNeeded() }
+        // Cloud sync: while the app is open, pull (e.g. food Claude added) every minute…
+        .task(id: scenePhase == .active) {
+            guard scenePhase == .active else { return }
+            while !Task.isCancelled {
+                await cloud.sync(context: context, app: app, health: health)
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
+        // …and push shortly after any local change.
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
+            cloud.scheduleSync(context: context, app: app, health: health)
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:

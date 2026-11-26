@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import AuthenticationServices
 
 struct ProfileView: View {
     @Environment(AppState.self) private var app
@@ -65,6 +66,9 @@ struct ProfileView: View {
                 }
                 .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+
+                CloudCard()
+                ExportCard()
 
                 // Appearance
                 VStack(alignment: .leading, spacing: 10) {
@@ -218,5 +222,168 @@ private struct LogWithClaudeCard: View {
             }
         }
         .card()
+    }
+}
+
+/// Cloud backup: Sign in with Apple, then everything syncs to the online database.
+private struct CloudCard: View {
+    @Environment(AppState.self) private var app
+    @Environment(HealthKitManager.self) private var health
+    @Environment(CloudSync.self) private var cloud
+    @Environment(\.modelContext) private var context
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var nonce = ""
+    @State private var error: String?
+    @State private var confirmSignOut = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "icloud").foregroundStyle(Theme.accent)
+                Text("Cloud backup").font(.manrope(17, .bold))
+            }
+            if let session = cloud.auth.session {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Signed in\(session.email.map { " as \($0)" } ?? " with Apple")")
+                        .font(.manrope(14, .semibold))
+                    Text(statusText).font(.manrope(12, .medium))
+                        .foregroundStyle(isFailed ? Theme.danger : Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack(spacing: 8) {
+                    Button {
+                        Task { await cloud.sync(context: context, app: app, health: health) }
+                    } label: {
+                        Label(cloud.isSyncing ? "Syncing…" : "Sync now", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.manrope(14, .bold))
+                            .foregroundStyle(Theme.onAccent)
+                            .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
+                            .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(PressableStyle())
+                    .disabled(cloud.isSyncing)
+                    Button { confirmSignOut = true } label: {
+                        Text("Sign out")
+                            .font(.manrope(14, .bold))
+                            .foregroundStyle(Theme.accent)
+                            .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
+                            .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(PressableStyle())
+                }
+            } else {
+                Text("Sign in to back up your food log, meals and foods online. It syncs automatically, survives reinstalling the app or a new phone, and lets Claude add food for you.")
+                    .font(.manrope(13, .medium)).foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                SignInWithAppleButton(.signIn) { request in
+                    let n = CloudAuth.makeNonce()
+                    nonce = n.raw
+                    request.requestedScopes = [.email]
+                    request.nonce = n.hashed
+                } onCompletion: { result in
+                    handle(result)
+                }
+                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                .frame(height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                if let error {
+                    Text(error).font(.manrope(12, .medium)).foregroundStyle(Theme.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .card()
+        .confirmationDialog("Sign out of cloud backup?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+            Button("Sign out", role: .destructive) {
+                cloud.auth.signOut()
+                cloud.reset()
+                app.showToast("Signed out")
+            }
+        } message: {
+            Text("Your log stays on this phone. Sign in again to resume syncing.")
+        }
+    }
+
+    private var isFailed: Bool {
+        if case .failed = cloud.status { return true }
+        return false
+    }
+
+    private var statusText: String {
+        switch cloud.status {
+        case .syncing: return "Syncing…"
+        case .failed(let message): return "Last sync failed: \(message)"
+        case .idle:
+            guard let last = cloud.lastSynced else { return "Not synced yet" }
+            let mins = Int(Date().timeIntervalSince(last) / 60)
+            return mins < 1 ? "Synced just now" : mins < 60 ? "Synced \(mins) min ago" : "Synced \(DayKey.short(last)) \(DayKey.time(last))"
+        }
+    }
+
+    private func handle(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .failure(let err):
+            if (err as? ASAuthorizationError)?.code != .canceled { error = err.localizedDescription }
+        case .success(let auth):
+            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential,
+                  let tokenData = credential.identityToken,
+                  let token = String(data: tokenData, encoding: .utf8) else {
+                error = "Apple didn't return a sign-in token."
+                return
+            }
+            Task {
+                do {
+                    try await cloud.auth.signInWithApple(idToken: token, rawNonce: nonce)
+                    error = nil
+                    app.showToast("Signed in · backing up your log")
+                    await cloud.sync(context: context, app: app, health: health)
+                } catch {
+                    self.error = "Couldn't sign in: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+/// Export: CSV files for spreadsheets plus a full backup, shared via the share sheet.
+private struct ExportCard: View {
+    @Environment(\.modelContext) private var context
+    @State private var files: [URL] = []
+    @State private var sharing = false
+    @State private var error: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.and.arrow.up").foregroundStyle(Theme.accent)
+                Text("Export my data").font(.manrope(17, .bold))
+            }
+            Text("Your food log, daily totals, foods, meals and weight as spreadsheet files (CSV), plus a full backup file. Save them to Files, AirDrop or email them.")
+                .font(.manrope(13, .medium)).foregroundStyle(Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                do {
+                    files = try DataExport.makeFiles(context: context)
+                    sharing = true
+                } catch {
+                    self.error = error.localizedDescription
+                }
+            } label: {
+                Label("Export", systemImage: "square.and.arrow.up")
+                    .font(.manrope(14, .bold))
+                    .foregroundStyle(Theme.accent)
+                    .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
+                    .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(PressableStyle())
+            if let error {
+                Text(error).font(.manrope(12, .medium)).foregroundStyle(Theme.danger)
+            }
+        }
+        .card()
+        .sheet(isPresented: $sharing) {
+            ShareSheet(items: files)
+                .presentationDetents([.medium, .large])
+        }
     }
 }

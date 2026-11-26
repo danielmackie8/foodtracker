@@ -6,9 +6,11 @@ struct SageApp: App {
     let container: ModelContainer
     @State private var app = AppState()
     @State private var health = HealthKitManager()
+    @State private var cloud: CloudSync
 
     init() {
         Manrope.register()
+        _cloud = State(initialValue: CloudSync(auth: CloudAuth()))
         do {
             container = try ModelContainer(for: Food.self, Meal.self, Entry.self, WeightReading.self)
         } catch {
@@ -23,6 +25,7 @@ struct SageApp: App {
             RootView()
                 .environment(app)
                 .environment(health)
+                .environment(cloud)
         }
         .modelContainer(container)
     }

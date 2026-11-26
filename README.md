@@ -45,6 +45,18 @@ For meals the app has no data for (restaurants, takeaways, home cooking), you ca
 
 The Claude app doesn't open links to other apps, so the copied code block is how food gets into Sage. Sage also understands `sage://log?...` links (one `item=name;kcal;protein;carbs;fat;amount` per food) if you open one from Safari or Notes.
 
+## Cloud backup and export
+
+Sage keeps its working copy on the phone and backs everything up to Supabase. The database lives in the "Christmas Tracker" project, in tables named `sage_foods`, `sage_meals` and `sage_entries`.
+
+- **Sign in:** Profile › Cloud backup › Sign in with Apple. Your existing log uploads straight away.
+- **Sync:** happens automatically when the app opens, a couple of seconds after any change, and every minute while it's open. Anything added on the server (for example by Claude through the Supabase connector) appears within a minute.
+- **Privacy:** row level security means a signed-in user can only read or change their own rows.
+- **What isn't synced:** weight comes from Apple Health and isn't synced. Goals and settings stay on the phone.
+- **Export:** Profile › Export my data creates `Food log.csv`, `Daily totals.csv`, `Foods.csv`, `Meals.csv`, `Weight.csv` and a full JSON backup, then opens the share sheet. You can also download any table as CSV from the Supabase dashboard.
+
+One-time setup: in the Supabase dashboard for the project, go to **Authentication › Sign In / Providers › Apple**, enable it, and add the app's bundle identifier under **Client IDs**.
+
 ## How it works
 
 ```
