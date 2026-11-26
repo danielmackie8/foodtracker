@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import SwiftData
 
 enum AppTab: Hashable {
@@ -40,6 +41,8 @@ final class AppState {
     var readSteps: Bool { didSet { defaults.set(readSteps, forKey: "readSteps") } }
     var readWorkouts: Bool { didSet { defaults.set(readWorkouts, forKey: "readWorkouts") } }
     var stepGoal: Double { didSet { defaults.set(stepGoal, forKey: "stepGoal") } }
+    /// Open Claude's copied estimate automatically when switching to Sage.
+    var autoClaudePaste: Bool { didSet { defaults.set(autoClaudePaste, forKey: "autoClaudePaste") } }
     /// Calories burnt in workouts raise that day's calorie budget.
     var addWorkoutCalories: Bool { didSet { defaults.set(addWorkoutCalories, forKey: "addWorkoutCalories") } }
     var writeNutrition: Bool { didSet { defaults.set(writeNutrition, forKey: "writeNutrition") } }
@@ -56,6 +59,7 @@ final class AppState {
         readSteps = d.object(forKey: "readSteps") as? Bool ?? true
         readWorkouts = d.object(forKey: "readWorkouts") as? Bool ?? true
         stepGoal = d.object(forKey: "stepGoal") as? Double ?? 10_000
+        autoClaudePaste = d.object(forKey: "autoClaudePaste") as? Bool ?? true
         addWorkoutCalories = d.object(forKey: "addWorkoutCalories") as? Bool ?? true
         writeNutrition = d.object(forKey: "writeNutrition") as? Bool ?? true
         lastSync = d.object(forKey: "lastSync") as? Date
@@ -64,6 +68,28 @@ final class AppState {
 
     private func save<T: Encodable>(_ value: T, _ key: String) {
         if let data = try? JSONEncoder().encode(value) { defaults.set(data, forKey: key) }
+    }
+
+    // MARK: Claude estimates on the clipboard
+
+    /// When Sage comes to the front, opens the review screen if something new on the clipboard
+    /// is a Claude estimate. Each copy is looked at once (tracked by the pasteboard's change count),
+    /// and nothing is read while a log sheet is already open.
+    func checkClipboardForClaude() {
+        guard autoClaudePaste else { return }
+        let board = UIPasteboard.general
+        let change = board.changeCount
+        let key = "lastPasteboardChange"
+        guard let last = defaults.object(forKey: key) as? Int else {
+            defaults.set(change, forKey: key) // first launch: ignore whatever was already copied
+            return
+        }
+        guard change != last, logRequest == nil, board.hasStrings else { return }
+        defaults.set(change, forKey: key)
+        guard let text = board.string,
+              text.contains("\"items\"") || text.contains("sage://"),
+              let payload = ClaudeImport.parse(text) else { return }
+        openImport(payload)
     }
 
     // MARK: Calorie budget

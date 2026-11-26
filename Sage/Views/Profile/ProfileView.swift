@@ -157,9 +157,18 @@ private struct LogWithClaudeCard: View {
                 Image(systemName: "sparkles").foregroundStyle(Theme.accent)
                 Text("Log with Claude").font(.manrope(17, .bold))
             }
-            Text("Tell Claude what you ate. Tap Copy on the code block in its reply, then tap From Claude in Sage's log sheet.")
+            Text("Tell Claude what you ate and tap Copy on the code block in its reply. When you switch back to Sage, the estimate opens ready to add.")
                 .font(.manrope(13, .medium)).foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
+            Toggle(isOn: Binding(get: { app.autoClaudePaste }, set: { app.autoClaudePaste = $0 })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Open copied estimates automatically").font(.manrope(14, .semibold))
+                    Text("To skip iOS's Allow Paste prompt: Settings › Apps › Sage › Paste from Other Apps › Allow")
+                        .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(Theme.switchOn)
             HStack(spacing: 8) {
                 Button {
                     UIPasteboard.general.string = ClaudeImport.claudeInstructions
@@ -187,7 +196,7 @@ private struct LogWithClaudeCard: View {
                         "Tap Copy instructions.",
                         "In the Claude app, create a project called Sage and paste them into its instructions.",
                         "Start chats about food in that project, e.g. “Wagamama chicken katsu curry for dinner”.",
-                        "Tap Copy on the code block in Claude’s reply, then tap + › From Claude in Sage.",
+                        "Tap Copy on the code block in Claude’s reply, then switch to Sage. (Or tap + › From Claude.)",
                     ].enumerated()), id: \.offset) { i, step in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text("\(i + 1).").font(.manrope(13, .bold)).foregroundStyle(Theme.accent)

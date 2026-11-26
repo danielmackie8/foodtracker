@@ -46,10 +46,14 @@ struct RootView: View {
                 app.showToast("That link didn't contain any food")
             }
         }
+        .task { app.checkClipboardForClaude() }
         .task { _ = await ProductDatabase.shared.prepare() }
         .task { await syncWeightIfNeeded() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await syncWeightIfNeeded() } }
+            if phase == .active {
+                app.checkClipboardForClaude()
+                Task { await syncWeightIfNeeded() }
+            }
         }
     }
 
