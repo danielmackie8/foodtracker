@@ -70,6 +70,21 @@ final class AppState {
         if let data = try? JSONEncoder().encode(value) { defaults.set(data, forKey: key) }
     }
 
+    // MARK: Opening the app
+
+    @ObservationIgnored var backgroundedAt: Date?
+
+    /// Coming back after more than 5 minutes away opens Day on today, like a fresh launch.
+    /// Short trips (e.g. to Claude to copy an estimate) leave you where you were.
+    func returnToTodayIfAway() {
+        guard let away = backgroundedAt else { return }
+        backgroundedAt = nil
+        guard Date().timeIntervalSince(away) > 5 * 60, logRequest == nil else { return }
+        tab = .day
+        dayOffset = 0
+        weekOffset = 0
+    }
+
     // MARK: Claude estimates on the clipboard
 
     /// When Sage comes to the front, opens the review screen if something new on the clipboard

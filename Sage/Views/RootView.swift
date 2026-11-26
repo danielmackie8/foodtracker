@@ -50,9 +50,15 @@ struct RootView: View {
         .task { _ = await ProductDatabase.shared.prepare() }
         .task { await syncWeightIfNeeded() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
+            switch phase {
+            case .background:
+                app.backgroundedAt = .now
+            case .active:
+                app.returnToTodayIfAway()
                 app.checkClipboardForClaude()
                 Task { await syncWeightIfNeeded() }
+            default:
+                break
             }
         }
     }
