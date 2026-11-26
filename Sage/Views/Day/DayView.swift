@@ -228,7 +228,7 @@ private struct SlotCard: View {
             Button { copy(previous, to: dayKey) } label: {
                 Text("Add")
                     .font(.manrope(14, .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.onAccent)
                     .padding(.horizontal, 16)
                     .frame(minHeight: 36)
                     .background(Theme.accent, in: Capsule())

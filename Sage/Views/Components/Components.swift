@@ -163,11 +163,11 @@ struct PillPicker<T: Hashable>: View {
                         .font(.manrope(13, on ? .bold : .medium))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                        .foregroundStyle(filled && on ? Color.white : Theme.text)
+                        .foregroundStyle(filled && on ? Theme.onAccent : Theme.text)
                         .padding(.horizontal, filled ? 14 : 6)
                         .frame(minWidth: filled ? 48 : 0, maxWidth: filled ? nil : .infinity, minHeight: filled ? 34 : 36)
                         .background(
-                            Capsule().fill(filled ? (on ? Theme.accent : Theme.chip) : (on ? Color.white : .clear))
+                            Capsule().fill(filled ? (on ? Theme.accent : Theme.chip) : (on ? Theme.field : .clear))
                         )
                         .shadow(color: !filled && on ? .black.opacity(0.06) : .clear, radius: 2, y: 1)
                 }
@@ -189,7 +189,7 @@ struct ToastView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Theme.text, in: Capsule())
+        .background(Theme.toast, in: Capsule())
         .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.updatesFrequently)

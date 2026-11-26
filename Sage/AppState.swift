@@ -41,6 +41,7 @@ final class AppState {
     var readSteps: Bool { didSet { defaults.set(readSteps, forKey: "readSteps") } }
     var readWorkouts: Bool { didSet { defaults.set(readWorkouts, forKey: "readWorkouts") } }
     var stepGoal: Double { didSet { defaults.set(stepGoal, forKey: "stepGoal") } }
+    var appearance: Appearance { didSet { defaults.set(appearance.rawValue, forKey: "appearance") } }
     /// Open Claude's copied estimate automatically when switching to Sage.
     var autoClaudePaste: Bool { didSet { defaults.set(autoClaudePaste, forKey: "autoClaudePaste") } }
     /// Calories burnt in workouts raise that day's calorie budget.
@@ -59,6 +60,7 @@ final class AppState {
         readSteps = d.object(forKey: "readSteps") as? Bool ?? true
         readWorkouts = d.object(forKey: "readWorkouts") as? Bool ?? true
         stepGoal = d.object(forKey: "stepGoal") as? Double ?? 10_000
+        appearance = Appearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
         autoClaudePaste = d.object(forKey: "autoClaudePaste") as? Bool ?? true
         addWorkoutCalories = d.object(forKey: "addWorkoutCalories") as? Bool ?? true
         writeNutrition = d.object(forKey: "writeNutrition") as? Bool ?? true

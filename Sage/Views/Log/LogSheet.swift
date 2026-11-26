@@ -105,11 +105,11 @@ struct SlotChips: View {
                 Button { slot = s } label: {
                     Text(s.rawValue)
                         .font(.manrope(13, .semibold))
-                        .foregroundStyle(on ? Color.white : Theme.text)
+                        .foregroundStyle(on ? Theme.onAccent : Theme.text)
                         .padding(.horizontal, 12)
                         .frame(minHeight: 36)
                         .frame(maxWidth: .infinity)
-                        .background(on ? Theme.accent : Color.white, in: Capsule())
+                        .background(on ? Theme.accent : Theme.field, in: Capsule())
                         .overlay(Capsule().strokeBorder(on ? Theme.accent : Theme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
@@ -258,7 +258,7 @@ private struct LogListView: View {
             }
             .padding(.leading, 14)
             .frame(minHeight: 48)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(Theme.field, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
 
             if q.isEmpty {

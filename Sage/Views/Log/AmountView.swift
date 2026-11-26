@@ -159,7 +159,7 @@ struct AmountView: View {
                     if editing != nil {
                         Button("Delete entry", role: .destructive) { deleteEntry() }
                             .font(.manrope(16, .bold))
-                            .foregroundStyle(Color(hex: 0xB3261E))
+                            .foregroundStyle(Theme.danger)
                             .frame(maxWidth: .infinity, minHeight: 52)
                     }
                 }

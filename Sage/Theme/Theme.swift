@@ -2,24 +2,28 @@ import SwiftUI
 import UIKit
 import CoreText
 
-/// "Sage Graphite" design tokens.
+/// "Sage Graphite" design tokens. Every colour has a light and a dark value.
 enum Theme {
-    static let background = Color(hex: 0xF6F3EE)
-    static let card = Color(hex: 0xFBF9F5)
-    static let border = Color(hex: 0xE7E1D6)
-    static let text = Color(hex: 0x1E2A23)
-    static let muted = Color(hex: 0x5F6A63)
-    static let track = Color(hex: 0xE7E1D6)
+    static let background = dynamic(0xF6F3EE, 0x101613)
+    static let card = dynamic(0xFBF9F5, 0x19211D)
+    static let border = dynamic(0xE7E1D6, 0x28322D)
+    static let text = dynamic(0x1E2A23, 0xE8EDE9)
+    static let muted = dynamic(0x5F6A63, 0x9AA69F)
+    static let track = dynamic(0xE7E1D6, 0x2A3530)
 
-    static let accent = Color(hex: 0x2F5D46)   // also protein
-    static let carbs = Color(hex: 0xB9823A)
-    static let fat = Color(hex: 0x94658A)
-    static let over = Color(hex: 0xB9823A)
+    static let accent = dynamic(0x2F5D46, 0x7DBB97)   // also protein
+    static let carbs = dynamic(0xB9823A, 0xDDA55E)
+    static let fat = dynamic(0x94658A, 0xC495B9)
+    static let over = dynamic(0xB9823A, 0xDDA55E)
+    /// Text and icons drawn on top of `accent` (buttons, the + tab).
+    static let onAccent = dynamic(0xFFFFFF, 0x0F1A14)
 
-    static let softAccent = Color(hex: 0x9DB5A6) // past-day bars
-    static let chip = Color(hex: 0xEFEAE1)       // unselected toggles
-    static let dashed = Color(hex: 0xDCD4C6)
-    static let disabledCTA = Color(hex: 0xA9B8AE)
+    static let softAccent = dynamic(0x9DB5A6, 0x3F6B53) // past-day bars
+    static let chip = dynamic(0xEFEAE1, 0x232D28)       // unselected toggles
+    static let field = dynamic(0xFFFFFF, 0x222B26)      // text fields, chips
+    static let dashed = dynamic(0xDCD4C6, 0x3A463F)
+    static let disabledCTA = dynamic(0xA9B8AE, 0x3A4A41)
+    static let toast = dynamic(0x1E2A23, 0x2E3A34)
     static let switchOn = Color(hex: 0x34A853)
 
     static let cardRadius: CGFloat = 22
@@ -27,6 +31,36 @@ enum Theme {
     static let gap: CGFloat = 12
     static let minTouch: CGFloat = 44
     static let tabBarHeight: CGFloat = 50   // + home-indicator safe area ≈ 84 pt
+
+    static func dynamicUIColor(_ light: UInt32, _ dark: UInt32) -> UIColor {
+        UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: dark) : UIColor(hex: light) }
+    }
+
+    private static func dynamic(_ light: UInt32, _ dark: UInt32) -> Color {
+        Color(uiColor: dynamicUIColor(light, dark))
+    }
+}
+
+enum Appearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+    var label: String { rawValue.capitalized }
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
+extension UIColor {
+    convenience init(hex: UInt32) {
+        self.init(red: CGFloat((hex >> 16) & 0xFF) / 255,
+                  green: CGFloat((hex >> 8) & 0xFF) / 255,
+                  blue: CGFloat(hex & 0xFF) / 255,
+                  alpha: 1)
+    }
 }
 
 extension Color {
@@ -70,17 +104,17 @@ enum Manrope {
     private static func configureUIKitAppearance() {
         let nav = UINavigationBarAppearance()
         nav.configureWithTransparentBackground()
-        nav.backgroundColor = UIColor(Theme.background)
-        nav.titleTextAttributes = [.font: uiFont(17, .bold), .foregroundColor: UIColor(Theme.text)]
-        nav.largeTitleTextAttributes = [.font: uiFont(30, .bold), .foregroundColor: UIColor(Theme.text)]
+        nav.backgroundColor = Theme.dynamicUIColor(0xF6F3EE, 0x101613)
+        nav.titleTextAttributes = [.font: uiFont(17, .bold), .foregroundColor: Theme.dynamicUIColor(0x1E2A23, 0xE8EDE9)]
+        nav.largeTitleTextAttributes = [.font: uiFont(30, .bold), .foregroundColor: Theme.dynamicUIColor(0x1E2A23, 0xE8EDE9)]
         let button = UIBarButtonItemAppearance()
-        button.normal.titleTextAttributes = [.font: uiFont(16, .semibold), .foregroundColor: UIColor(Theme.accent)]
+        button.normal.titleTextAttributes = [.font: uiFont(16, .semibold), .foregroundColor: Theme.dynamicUIColor(0x2F5D46, 0x7DBB97)]
         nav.buttonAppearance = button
         nav.backButtonAppearance = button
         UINavigationBar.appearance().standardAppearance = nav
         UINavigationBar.appearance().scrollEdgeAppearance = nav
         UINavigationBar.appearance().compactAppearance = nav
-        UINavigationBar.appearance().tintColor = UIColor(Theme.accent)
+        UINavigationBar.appearance().tintColor = Theme.dynamicUIColor(0x2F5D46, 0x7DBB97)
     }
 }
 
@@ -145,7 +179,7 @@ struct CircleIconButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(filled ? Color.white : Theme.text)
+            .foregroundStyle(filled ? Theme.onAccent : Theme.text)
             .frame(width: Theme.minTouch, height: Theme.minTouch)
             .background(filled ? Theme.accent : Theme.card, in: Circle())
             .overlay(Circle().strokeBorder(filled ? Color.clear : Theme.border, lineWidth: 1))
@@ -159,7 +193,7 @@ struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.manrope(16, .bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.onAccent)
             .frame(maxWidth: .infinity, minHeight: 52)
             .background(enabled ? color : Theme.disabledCTA, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .opacity(configuration.isPressed ? 0.8 : 1)
@@ -167,5 +201,5 @@ struct PrimaryButtonStyle: ButtonStyle {
 }
 
 extension Theme {
-    static let danger = Color(hex: 0xB3261E)
+    static let danger = Color(uiColor: Theme.dynamicUIColor(0xB3261E, 0xFF7B70))
 }

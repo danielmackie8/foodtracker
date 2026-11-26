@@ -164,7 +164,7 @@ private struct ItemRow: View {
                 .font(.manrope(16, .semibold))
                 .padding(.horizontal, 10)
                 .frame(minHeight: 44)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(Theme.field, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
         }
         .frame(maxWidth: .infinity)

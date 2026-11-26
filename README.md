@@ -82,7 +82,7 @@ scripts/update_products.py     Rebuilds the product database from the Open Food 
 ## Notes
 
 - `Sage.xcodeproj` uses Xcode 16's folder-synced groups, so any file you add under `Sage/` is picked up automatically. If you're on an older Xcode, regenerate the project with [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen && xcodegen`.
-- The app is light-mode only, to match the design.
+- Light and dark mode: choose System, Light or Dark in Profile › Appearance.
 - Built-in foods are defined in `SeedData.swift`. New built-ins are added on the next launch, and existing data is never overwritten.
 - Fonts: Manrope © The Manrope Project Authors, under the SIL Open Font License (`Sage/Resources/Fonts/OFL.txt`).
 - Product data: © Open Food Facts contributors, under the [ODbL](https://opendatacommons.org/licenses/odbl/1-0/).

@@ -33,6 +33,7 @@ struct RootView: View {
         .foregroundStyle(Theme.text)
         .font(.manrope(15))
         .tint(Theme.accent)
+        .preferredColorScheme(app.appearance.colorScheme)
         .sheet(item: $app.logRequest) { request in
             LogSheet(request: request)
                 .presentationDetents([.large])
@@ -83,7 +84,7 @@ struct TabBar: View {
             Button { app.openLog() } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.onAccent)
                     .frame(width: 56, height: 56)
                     .background(Theme.accent, in: Circle())
                     .shadow(color: Theme.accent.opacity(0.3), radius: 8, y: 3)

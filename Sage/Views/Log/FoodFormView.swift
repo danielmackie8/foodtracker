@@ -126,7 +126,7 @@ struct FoodFormView: View {
                 .focused($focus, equals: id)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 48)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Theme.field, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
         }
         .frame(maxWidth: .infinity)

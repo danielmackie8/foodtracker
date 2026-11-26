@@ -66,6 +66,15 @@ struct ProfileView: View {
                 .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
 
+                // Appearance
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Appearance").font(.manrope(17, .bold))
+                    PillPicker(options: Appearance.allCases.map { ($0, $0.label) }, selection: $app.appearance)
+                    Text("System follows your iPhone's light or dark setting.")
+                        .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+                }
+                .card()
+
                 // Goals
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Daily goals").font(.manrope(17, .bold)).padding(.bottom, 6)
@@ -178,7 +187,7 @@ private struct LogWithClaudeCard: View {
                         .font(.manrope(14, .bold))
                         .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
                         .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.onAccent)
                 }
                 .buttonStyle(PressableStyle())
                 Button { withAnimation(.snappy) { showSteps.toggle() } } label: {
