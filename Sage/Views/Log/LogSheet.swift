@@ -140,6 +140,7 @@ private struct LogListView: View {
     @State private var remoteState: RemoteState = .idle
     @State private var scanning = false
     @State private var pasteFailed = false
+    @State private var breakdownMeal: Meal?
     @FocusState private var searchFocused: Bool
 
     enum RemoteState: Equatable { case idle, loading, failed(String) }
@@ -195,6 +196,16 @@ private struct LogListView: View {
             guard !Task.isCancelled else { return }
             local = found
             localQuery = current
+        }
+        .sheet(item: $breakdownMeal) { meal in
+            MealBreakdownSheet(meal: meal, catalog: catalog, date: date, slot: $slot,
+                               onEdit: {
+                                   breakdownMeal = nil
+                                   path.append(.editMeal(meal.id))
+                               })
+                .presentationDetents([.medium, .large])
+                .presentationCornerRadius(28)
+                .presentationBackground(Theme.background)
         }
         .fullScreenCover(isPresented: $scanning) {
             BarcodeScannerSheet { code in
@@ -279,7 +290,8 @@ private struct LogListView: View {
                 mealsList
             case .foods:
                 ForEach(sortedFoods) { f in
-                    ResultRow(name: f.name, sub: foodSubtitle(f)) { path.append(.food(f.id)) }
+                    ResultRow(name: f.name, sub: foodSubtitle(f), action: { path.append(.food(f.id)) },
+                              onAdd: { add(food: f) })
                 }
             case .products:
                 productsHint
@@ -295,10 +307,12 @@ private struct LogListView: View {
 
             ForEach(matchedMeals) { m in
                 let mac = catalog.macros(of: m)
-                ResultRow(name: m.name, sub: "\(mac.kcal.kcalString) kcal · \(mac.p.grams) g protein · \(m.desc)") { path.append(.meal(m.id)) }
+                ResultRow(name: m.name, sub: "\(mac.kcal.kcalString) kcal · \(mac.p.grams) g protein · \(m.desc)",
+                          action: { breakdownMeal = m }, onAdd: { add(meal: m) })
             }
             ForEach(matchedFoods) { f in
-                ResultRow(name: f.name, sub: foodSubtitle(f)) { path.append(.food(f.id)) }
+                ResultRow(name: f.name, sub: foodSubtitle(f), action: { path.append(.food(f.id)) },
+                          onAdd: { add(food: f) })
             }
             if !bundled.isEmpty || !live.isEmpty {
                 HStack {
@@ -308,7 +322,8 @@ private struct LogListView: View {
                 }
                 .padding(.top, 18).padding(.bottom, 4)
                 ForEach(bundled + live) { p in
-                    ResultRow(name: p.name, sub: p.subtitle) { path.append(.product(p)) }
+                    ResultRow(name: p.name, sub: p.subtitle, action: { path.append(.product(p)) },
+                              onAdd: { add(food: catalog.foods[p.foodId] ?? p.makeFood()) })
                 }
             }
 
@@ -369,6 +384,30 @@ private struct LogListView: View {
         }
     }
 
+    /// One tap from the + button: logs a meal (1 serving) or a food (its usual amount).
+    private func add(meal: Meal) {
+        let entry = Entry(date: date, slot: slot, kind: .meal, ref: meal.id, amount: 1, time: DayKey.time(.now))
+        EntryActions.add(entry, catalog: catalog, context: context, app: app, health: health)
+        finishAdd(meal.name)
+    }
+
+    private func add(food: Food) {
+        var cat = catalog
+        if catalog.foods[food.id] == nil {
+            context.insert(food) // a UK product logged for the first time
+            cat = cat.with(food)
+        }
+        let entry = Entry(date: date, slot: slot, kind: .food, ref: food.id, amount: food.def, time: DayKey.time(.now))
+        EntryActions.add(entry, catalog: cat, context: context, app: app, health: health)
+        finishAdd(food.name)
+    }
+
+    private func finishAdd(_ name: String) {
+        app.showToast("Added \(name) to \(slot.rawValue)")
+        app.didLog(on: date)
+        app.logRequest = nil
+    }
+
     private func copy(_ entries: [Entry]) {
         EntryActions.copy(entries, to: date, slot: slot, catalog: catalog, context: context, app: app, health: health)
         app.showToast(entries.count == 1 ? "Added \(catalog.name(of: entries[0])) to \(slot.rawValue)"
@@ -421,9 +460,8 @@ private struct LogListView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(m.favourite ? "Remove \(m.name) from favourites" : "Add \(m.name) to favourites")
-            ResultRow(name: m.name, sub: "\(mac.kcal.kcalString) kcal · \(mac.p.grams) g protein · \(m.desc)") {
-                path.append(.meal(m.id))
-            }
+            ResultRow(name: m.name, sub: "\(mac.kcal.kcalString) kcal · \(mac.p.grams) g protein · \(m.desc)",
+                      action: { breakdownMeal = m }, onAdd: { add(meal: m) })
         }
         .contextMenu {
             Button { path.append(.editMeal(m.id)) } label: { Label("Edit meal", systemImage: "pencil") }
@@ -565,32 +603,45 @@ private struct ActionChip: View {
     }
 }
 
+/// A result row. Tapping the row opens its details; tapping + adds it straight away.
 private struct ResultRow: View {
     var name: String
     var sub: String
     var action: () -> Void
+    var onAdd: (() -> Void)? = nil
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(name).font(.manrope(15, .semibold)).foregroundStyle(Theme.text).lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    Text(sub).font(.manrope(12, .medium)).foregroundStyle(Theme.muted).lineLimit(2)
-                        .multilineTextAlignment(.leading)
+        HStack(spacing: 4) {
+            Button(action: action) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(name).font(.manrope(15, .semibold)).foregroundStyle(Theme.text).lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                        Text(sub).font(.manrope(12, .medium)).foregroundStyle(Theme.muted).lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
+                    Spacer(minLength: 8)
                 }
-                Spacer(minLength: 8)
+                .padding(.vertical, 10)
+                .frame(minHeight: 60)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableStyle())
+            .accessibilityHint("Shows details")
+
+            Button(action: onAdd ?? action) {
                 Image(systemName: "plus")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Theme.accent)
                     .frame(width: 32, height: 32)
                     .background(Theme.accent.opacity(0.1), in: Circle())
+                    .frame(width: Theme.minTouch, height: Theme.minTouch)
+                    .contentShape(Rectangle())
             }
-            .padding(.vertical, 10)
-            .frame(minHeight: 60)
-            .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
+            .buttonStyle(PressableStyle())
+            .accessibilityLabel("Add \(name)")
         }
-        .buttonStyle(PressableStyle())
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
     }
 }
 
@@ -620,5 +671,106 @@ private struct FromClaudeRow: View {
         .frame(minHeight: 56)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+    }
+}
+
+/// Pop-up breakdown of a meal: each food with its amount and calories, servings, and Add.
+private struct MealBreakdownSheet: View {
+    let meal: Meal
+    let catalog: Catalog
+    let date: String
+    @Binding var slot: Slot
+    var onEdit: () -> Void
+
+    @Environment(AppState.self) private var app
+    @Environment(HealthKitManager.self) private var health
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    @State private var servings: Double = 1
+
+    var body: some View {
+        let parts: [(food: Food, amount: Double)] = meal.parts.compactMap { p in
+            guard let food = catalog.foods[p.foodId] else { return nil }
+            return (food: food, amount: p.amount * servings)
+        }
+        let total = catalog.macros(of: meal) * servings
+
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(meal.name).font(.manrope(22, .heavy)).tracking(-0.3)
+                    Spacer()
+                    Button("Edit", action: onEdit)
+                        .font(.manrope(15, .bold))
+                        .foregroundStyle(Theme.accent)
+                        .frame(minHeight: Theme.minTouch)
+                }
+
+                HStack(spacing: 8) {
+                    tile(total.kcal.kcalString, "kcal", Theme.text)
+                    tile("\(total.p.grams)g", "protein", Theme.accent)
+                    tile("\(total.c.grams)g", "carbs", Theme.text)
+                    tile("\(total.f.grams)g", "fat", Theme.text)
+                }
+
+                VStack(spacing: 0) {
+                    ForEach(Array(parts.enumerated()), id: \.offset) { i, part in
+                        if i > 0 { Divider().overlay(Theme.border) }
+                        let m = part.food.macros(for: part.amount)
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(part.food.name).font(.manrope(15, .semibold))
+                                Text("\(part.food.amountLabel(part.amount)) · \(m.p.grams) g P · \(m.c.grams) g C · \(m.f.grams) g F")
+                                    .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+                            }
+                            Spacer(minLength: 8)
+                            (Text(m.kcal.kcalString).font(.manrope(15, .bold))
+                             + Text(" kcal").font(.manrope(12, .medium)).foregroundColor(Theme.muted))
+                                .monospacedDigit()
+                        }
+                        .frame(minHeight: 56)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .card(padding: 0)
+
+                HStack {
+                    Text("Servings").font(.manrope(15, .semibold))
+                    Spacer()
+                    Button { servings = max(0.5, servings - 0.5) } label: { Image(systemName: "minus") }
+                        .buttonStyle(CircleIconButtonStyle())
+                        .accessibilityLabel("Fewer servings")
+                    Text(servings.clean).font(.manrope(17, .bold)).monospacedDigit().frame(minWidth: 36)
+                    Button { servings += 0.5 } label: { Image(systemName: "plus") }
+                        .buttonStyle(CircleIconButtonStyle())
+                        .accessibilityLabel("More servings")
+                }
+
+                SlotChips(slot: $slot)
+
+                Button("Add to \(slot.rawValue)") {
+                    let entry = Entry(date: date, slot: slot, kind: .meal, ref: meal.id, amount: servings, time: DayKey.time(.now))
+                    EntryActions.add(entry, catalog: catalog, context: context, app: app, health: health)
+                    app.showToast("Added \(meal.name) to \(slot.rawValue)")
+                    app.didLog(on: date)
+                    dismiss()
+                    app.logRequest = nil
+                }
+                .buttonStyle(PrimaryButtonStyle())
+            }
+            .padding(Theme.pagePadding)
+        }
+    }
+
+    private func tile(_ value: String, _ label: String, _ color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(.manrope(18, .heavy)).foregroundStyle(color).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Text(label).font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+        }
+        .frame(maxWidth: .infinity, minHeight: 60)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
     }
 }
