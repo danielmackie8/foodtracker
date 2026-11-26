@@ -142,6 +142,18 @@ enum EntryActions {
         pushToHealth(entry, catalog: catalog, app: app, health: health)
     }
 
+    /// Logs copies of `entries` on another day/slot (e.g. yesterday's lunch for today).
+    static func copy(_ entries: [Entry], to date: String, slot: Slot, catalog: Catalog,
+                     context: ModelContext, app: AppState, health: HealthKitManager) {
+        let time = DayKey.time(.now)
+        for e in entries {
+            let copy = Entry(date: date, slot: slot, kind: e.kind, ref: e.ref, amount: e.amount, time: time,
+                             quick: e.kind == .quick ? e.quickMacros : nil)
+            copy.note = e.note
+            add(copy, catalog: catalog, context: context, app: app, health: health)
+        }
+    }
+
     static func delete(_ entry: Entry, context: ModelContext, app: AppState, health: HealthKitManager) {
         let id = entry.id
         context.delete(entry)

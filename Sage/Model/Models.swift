@@ -106,6 +106,8 @@ final class Meal {
     var desc: String
     var parts: [MealPart]
     var sortIndex: Int
+    /// Pinned to the top of Your meals.
+    var favourite: Bool = false
 
     init(id: String, name: String, desc: String, parts: [MealPart], sortIndex: Int = 0) {
         self.id = id

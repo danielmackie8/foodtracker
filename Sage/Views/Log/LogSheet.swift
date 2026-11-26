@@ -8,6 +8,8 @@ enum LogRoute: Hashable {
     case quickAdd
     case createFood(String)
     case imported(ClaudeImport)
+    case createMeal
+    case editMeal(String)
 }
 
 /// The log sheet: search + lists, then the amount screen.
@@ -18,6 +20,7 @@ struct LogSheet: View {
     @Query private var foods: [Food]
     @Query(sort: \Meal.sortIndex) private var meals: [Meal]
     @Query private var dayEntries: [Entry]
+    @Query private var yesterdayEntries: [Entry]
 
     @State private var path: [LogRoute] = []
     @State private var slot: Slot
@@ -26,6 +29,8 @@ struct LogSheet: View {
         self.request = request
         let day = request.date
         _dayEntries = Query(filter: #Predicate<Entry> { $0.date == day })
+        let previous = DayKey.key(DayKey.add(-1, to: DayKey.date(day)))
+        _yesterdayEntries = Query(filter: #Predicate<Entry> { $0.date == previous }, sort: \Entry.time)
         _slot = State(initialValue: request.slot)
     }
 
@@ -42,7 +47,8 @@ struct LogSheet: View {
                                catalog: catalog, baseTotals: dayTotals - catalog.macros(of: entry),
                                date: request.date, slot: $slot)
                 } else {
-                    LogListView(foods: foods, meals: meals, catalog: catalog, slot: $slot, path: $path)
+                    LogListView(foods: foods, meals: meals, catalog: catalog, yesterday: yesterdayEntries,
+                                date: request.date, slot: $slot, path: $path)
                 }
             }
             .navigationDestination(for: LogRoute.self) { route in
@@ -63,6 +69,12 @@ struct LogSheet: View {
                     FoodFormView(mode: .quick, slot: $slot, date: request.date, baseTotals: dayTotals, catalog: catalog) { _ in }
                 case .imported(let payload):
                     ImportReviewView(payload: payload, defaultDate: request.date, catalog: catalog, slot: $slot)
+                case .createMeal:
+                    MealEditorView(meal: nil, catalog: catalog) { _ in path.removeLast() }
+                case .editMeal(let id):
+                    if let meal = catalog.meals[id] {
+                        MealEditorView(meal: meal, catalog: catalog) { _ in path.removeLast() }
+                    }
                 case .createFood(let name):
                     FoodFormView(mode: .create(name), slot: $slot, date: request.date, baseTotals: dayTotals, catalog: catalog) { food in
                         path.removeLast()
@@ -104,18 +116,23 @@ struct SlotChips: View {
 
 // MARK: - Search & lists
 
-private enum ListTab: Hashable { case usuals, foods, products }
+private enum ListTab: Hashable { case yesterday, usuals, foods, products }
 
 private struct LogListView: View {
     var foods: [Food]
     var meals: [Meal]
     var catalog: Catalog
+    var yesterday: [Entry]
+    var date: String
     @Binding var slot: Slot
     @Binding var path: [LogRoute]
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var app
+    @Environment(HealthKitManager.self) private var health
+    @Environment(\.modelContext) private var context
     @State private var query = ""
-    @State private var tab: ListTab = .usuals
+    @State private var tab: ListTab
     @State private var local: [OFFProduct] = []
     @State private var localQuery = ""
     @State private var remote: [OFFProduct] = []
@@ -127,12 +144,16 @@ private struct LogListView: View {
 
     enum RemoteState: Equatable { case idle, loading, failed(String) }
 
-    init(foods: [Food], meals: [Meal], catalog: Catalog, slot: Binding<Slot>, path: Binding<[LogRoute]>) {
+    init(foods: [Food], meals: [Meal], catalog: Catalog, yesterday: [Entry], date: String,
+         slot: Binding<Slot>, path: Binding<[LogRoute]>) {
         self.foods = foods
         self.meals = meals
         self.catalog = catalog
+        self.yesterday = yesterday
+        self.date = date
         _slot = slot
         _path = path
+        _tab = State(initialValue: yesterday.isEmpty ? .usuals : .yesterday)
     }
 
     private static let builtinOrder: [String: Int] = Dictionary(uniqueKeysWithValues: SeedData.foods().enumerated().map { ($1.id, $0) })
@@ -238,7 +259,8 @@ private struct LogListView: View {
                 } message: {
                     Text("Copy Claude's code block (or its Add to Sage link) first, then tap Paste.")
                 }
-                PillPicker(options: [(ListTab.usuals, "Your meals"), (.foods, "Foods"), (.products, "UK products")], selection: $tab)
+                PillPicker(options: [(ListTab.yesterday, "Yesterday"), (.usuals, "Your meals"), (.foods, "Foods"), (.products, "UK")],
+                           selection: $tab)
             }
         }
         .padding(.horizontal, Theme.pagePadding)
@@ -251,13 +273,10 @@ private struct LogListView: View {
     @ViewBuilder private var results: some View {
         if q.isEmpty {
             switch tab {
+            case .yesterday:
+                yesterdayList
             case .usuals:
-                ForEach(meals) { m in
-                    let mac = catalog.macros(of: m)
-                    ResultRow(name: m.name, sub: "\(mac.kcal.kcalString) kcal · \(mac.p.grams) g protein · \(m.desc)") {
-                        path.append(.meal(m.id))
-                    }
-                }
+                mealsList
             case .foods:
                 ForEach(sortedFoods) { f in
                     ResultRow(name: f.name, sub: foodSubtitle(f)) { path.append(.food(f.id)) }
@@ -294,6 +313,130 @@ private struct LogListView: View {
             }
 
             remoteFooter(isEmpty: matchedMeals.isEmpty && matchedFoods.isEmpty && bundled.isEmpty && live.isEmpty)
+        }
+    }
+
+    // MARK: Yesterday
+
+    @ViewBuilder private var yesterdayList: some View {
+        if yesterday.isEmpty {
+            Text("Nothing logged yesterday.")
+                .font(.manrope(14)).foregroundStyle(Theme.muted)
+                .frame(maxWidth: .infinity, minHeight: 120)
+        } else {
+            let prevDate = DayKey.add(-1, to: DayKey.date(date))
+            Text("YESTERDAY · \(prevDate.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)).uppercased())")
+                .font(.manrope(11, .heavy)).tracking(0.8).foregroundStyle(Theme.muted)
+                .padding(.top, 6).padding(.bottom, 2)
+            ForEach(Slot.allCases) { s in
+                let items = yesterday.filter { $0.slot == s }
+                if !items.isEmpty {
+                    Text(s.rawValue.uppercased())
+                        .font(.manrope(11, .bold)).tracking(0.6).foregroundStyle(Theme.accent)
+                        .padding(.top, 14)
+                    ForEach(items) { e in
+                        let m = catalog.macros(of: e)
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(catalog.name(of: e)).font(.manrope(15, .semibold)).lineLimit(2)
+                                Text("\(m.kcal.kcalString) kcal · \(m.p.grams) g P · \(catalog.amountLabel(of: e))")
+                                    .font(.manrope(12, .medium)).foregroundStyle(Theme.muted).lineLimit(1)
+                            }
+                            Spacer(minLength: 8)
+                            Button { copy([e]) } label: {
+                                Label("Add", systemImage: "plus")
+                                    .font(.manrope(13, .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 14)
+                                    .frame(minHeight: 34)
+                                    .background(Theme.accent, in: Capsule())
+                                    .frame(minHeight: Theme.minTouch)
+                            }
+                            .buttonStyle(PressableStyle())
+                            .accessibilityLabel("Add \(catalog.name(of: e)) to \(slot.rawValue)")
+                        }
+                        .padding(.vertical, 6)
+                        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
+                    }
+                }
+            }
+            let sameSlot = yesterday.filter { $0.slot == slot }
+            if sameSlot.count > 1 {
+                Button("Repeat all of yesterday's \(slot.rawValue.lowercased())") { copy(sameSlot) }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .padding(.top, 18)
+            }
+        }
+    }
+
+    private func copy(_ entries: [Entry]) {
+        EntryActions.copy(entries, to: date, slot: slot, catalog: catalog, context: context, app: app, health: health)
+        app.showToast(entries.count == 1 ? "Added \(catalog.name(of: entries[0])) to \(slot.rawValue)"
+                                         : "Added \(entries.count) items to \(slot.rawValue)")
+        app.didLog(on: date)
+        app.logRequest = nil
+    }
+
+    // MARK: Your meals
+
+    @ViewBuilder private var mealsList: some View {
+        let favourites = meals.filter(\.favourite)
+        let others = meals.filter { !$0.favourite }
+        Button { path.append(.createMeal) } label: {
+            Label("Create a meal", systemImage: "plus")
+                .font(.manrope(14, .bold))
+                .foregroundStyle(Theme.accent)
+                .frame(maxWidth: .infinity, minHeight: Theme.minTouch)
+                .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(PressableStyle())
+        .padding(.top, 4)
+
+        if !favourites.isEmpty {
+            Label("FAVOURITES", systemImage: "star.fill")
+                .font(.manrope(11, .heavy)).tracking(0.8).foregroundStyle(Theme.muted)
+                .padding(.top, 16).padding(.bottom, 2)
+            ForEach(favourites) { m in mealRow(m) }
+            Text("ALL MEALS")
+                .font(.manrope(11, .heavy)).tracking(0.8).foregroundStyle(Theme.muted)
+                .padding(.top, 18).padding(.bottom, 2)
+        }
+        ForEach(others) { m in mealRow(m) }
+        Text("Tap ☆ to favourite · press and hold a meal to edit or delete it")
+            .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+            .padding(.top, 12)
+    }
+
+    private func mealRow(_ m: Meal) -> some View {
+        let mac = catalog.macros(of: m)
+        return HStack(spacing: 4) {
+            Button {
+                m.favourite.toggle()
+                try? context.save()
+            } label: {
+                Image(systemName: m.favourite ? "star.fill" : "star")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(m.favourite ? Theme.carbs : Theme.dashed)
+                    .frame(width: 36, height: Theme.minTouch)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(m.favourite ? "Remove \(m.name) from favourites" : "Add \(m.name) to favourites")
+            ResultRow(name: m.name, sub: "\(mac.kcal.kcalString) kcal · \(mac.p.grams) g protein · \(m.desc)") {
+                path.append(.meal(m.id))
+            }
+        }
+        .contextMenu {
+            Button { path.append(.editMeal(m.id)) } label: { Label("Edit meal", systemImage: "pencil") }
+            Button {
+                m.favourite.toggle()
+                try? context.save()
+            } label: {
+                Label(m.favourite ? "Remove from favourites" : "Add to favourites", systemImage: m.favourite ? "star.slash" : "star")
+            }
+            Button(role: .destructive) {
+                MealActions.delete(m, catalog: catalog, context: context)
+                app.showToast("Meal deleted")
+            } label: { Label("Delete meal", systemImage: "trash") }
         }
     }
 
