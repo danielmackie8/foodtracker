@@ -157,7 +157,7 @@ private struct LogWithClaudeCard: View {
                 Image(systemName: "sparkles").foregroundStyle(Theme.accent)
                 Text("Log with Claude").font(.manrope(17, .bold))
             }
-            Text("Tell Claude what you ate. It replies with an Add to Sage link and a code block. Tap the link, or copy the code block and use From Claude › Paste in the log sheet.")
+            Text("Tell Claude what you ate. Tap Copy on the code block in its reply, then tap From Claude in Sage's log sheet.")
                 .font(.manrope(13, .medium)).foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
@@ -187,7 +187,7 @@ private struct LogWithClaudeCard: View {
                         "Tap Copy instructions.",
                         "In the Claude app, create a project called Sage and paste them into its instructions.",
                         "Start chats about food in that project, e.g. “Wagamama chicken katsu curry for dinner”.",
-                        "Tap Add to Sage in the reply, or copy the code block and paste it in Sage’s log sheet.",
+                        "Tap Copy on the code block in Claude’s reply, then tap + › From Claude in Sage.",
                     ].enumerated()), id: \.offset) { i, step in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text("\(i + 1).").font(.manrope(13, .bold)).foregroundStyle(Theme.accent)

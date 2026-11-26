@@ -40,10 +40,10 @@ For meals the app has no data for (restaurants, takeaways, home cooking), you ca
 1. In Sage, go to **Profile › Log with Claude › Copy instructions**.
 2. In the Claude app, create a project (for example "Sage") and paste the copied text as its instructions.
 3. In that project, tell Claude what you ate, for example *"Wagamama chicken katsu curry for dinner"*.
-4. Claude replies with a short breakdown, an **Add to Sage** link and a JSON code block. Either tap the link, or copy the code block and, in Sage's log sheet, tap **From Claude › Paste**.
+4. Claude replies with a short breakdown and a JSON code block. Tap **Copy** on the code block, then in Sage open the log sheet and tap **From Claude**.
 5. Check the numbers (tap an item to adjust them), then tap **Add**.
 
-Links look like `sage://log?slot=Dinner&item=Chicken%20katsu%20curry;1150;52;140;38;1%20regular`. There's one `item=` per food, in the form `name;kcal;protein;carbs;fat;amount`, and you can add `&date=yesterday` or `&date=YYYY-MM-DD`. Each item is added as a quick-add entry.
+The Claude app doesn't open links to other apps, so the copied code block is how food gets into Sage. Sage also understands `sage://log?...` links (one `item=name;kcal;protein;carbs;fat;amount` per food) if you open one from Safari or Notes.
 
 ## How it works
 

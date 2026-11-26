@@ -116,13 +116,10 @@ struct ClaudeImport: Hashable {
 
     1. One line per item: name — kcal · protein g · carbs g · fat g.
 
-    2. A link in exactly this format, with one item= per food:
-    [Add to Sage](sage://log?slot=SLOT&item=NAME;KCAL;PROTEIN;CARBS;FAT;AMOUNT)
-    - Encode spaces as %20 and leave out units. Round numbers to whole numbers.
-    - SLOT is Breakfast, Lunch, Snack or Dinner: use what I said, otherwise guess from the time of day.
-    - If I say it wasn't today, add &date=yesterday or &date=YYYY-MM-DD.
-
-    3. The same data as JSON in a code block, so I can copy it:
+    2. Then the same data as JSON in a single code block, so I can copy it into the app. Use exactly this shape, whole numbers, no units:
     {"slot":"Dinner","date":"today","items":[{"name":"…","amount":"…","kcal":0,"protein":0,"carbs":0,"fat":0}]}
+    - slot is Breakfast, Lunch, Snack or Dinner: use what I said, otherwise guess from the time of day.
+    - date is "today" unless I say otherwise ("yesterday" or YYYY-MM-DD).
+    - Don't include links.
     """
 }
