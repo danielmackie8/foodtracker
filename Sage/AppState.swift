@@ -26,7 +26,7 @@ struct LogRequest: Identifiable {
 @MainActor
 @Observable
 final class AppState {
-    var tab: AppTab = .home
+    var tab: AppTab = .day
     var dayOffset = 0
     var weekOffset = 0
     var logRequest: LogRequest?
