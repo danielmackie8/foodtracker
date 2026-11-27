@@ -44,6 +44,13 @@ final class AppState {
     var readWorkouts: Bool { didSet { defaults.set(readWorkouts, forKey: "readWorkouts") } }
     var stepGoal: Double { didSet { defaults.set(stepGoal, forKey: "stepGoal") } }
     var appearance: Appearance { didSet { defaults.set(appearance.rawValue, forKey: "appearance") } }
+    /// Adaptive calorie target: weekly suggestions from real maintenance.
+    var adaptiveOn: Bool { didSet { defaults.set(adaptiveOn, forKey: "adaptiveOn") } }
+    /// Planned weight change, kg per week (0 = maintain).
+    var adaptivePace: Double { didSet { defaults.set(adaptivePace, forKey: "adaptivePace") } }
+    var goalWeight: Double? { didSet { defaults.set(goalWeight, forKey: "goalWeight") } }
+    /// Monday (YYYY-MM-DD) of the last week whose check-in was answered.
+    var lastCheckIn: String? { didSet { defaults.set(lastCheckIn, forKey: "lastCheckIn") } }
     /// Open Claude's copied estimate automatically when switching to Sage.
     var autoClaudePaste: Bool { didSet { defaults.set(autoClaudePaste, forKey: "autoClaudePaste") } }
     /// Calories burnt in workouts raise that day's calorie budget.
@@ -63,6 +70,10 @@ final class AppState {
         readWorkouts = d.object(forKey: "readWorkouts") as? Bool ?? true
         stepGoal = d.object(forKey: "stepGoal") as? Double ?? 10_000
         appearance = Appearance(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
+        adaptiveOn = d.object(forKey: "adaptiveOn") as? Bool ?? true
+        adaptivePace = d.object(forKey: "adaptivePace") as? Double ?? 0.5
+        goalWeight = d.object(forKey: "goalWeight") as? Double
+        lastCheckIn = d.string(forKey: "lastCheckIn")
         autoClaudePaste = d.object(forKey: "autoClaudePaste") as? Bool ?? true
         addWorkoutCalories = d.object(forKey: "addWorkoutCalories") as? Bool ?? true
         writeNutrition = d.object(forKey: "writeNutrition") as? Bool ?? true

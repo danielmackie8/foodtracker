@@ -76,6 +76,11 @@ private struct WeekContent: View {
                     StatTile(label: "Weight", value: weightChange, sub: weightSub, subColor: Theme.accent)
                 }
 
+                if app.adaptiveOn {
+                    MaintenanceCard(estimate: AdaptiveData.estimate(entries: allEntries, catalog: Catalog(foods: foods, meals: meals),
+                                                                    weights: allWeights, app: app, health: health))
+                }
+
                 CaloriesChartCard(days: days.map { (date: $0.date, totals: $0.totals, future: $0.future, isToday: $0.isToday) }, goal: goals.kcal)
 
                 if app.healthEnabled { WeekActivityCard(monday: monday, steps: steps) }
@@ -90,6 +95,7 @@ private struct WeekContent: View {
         }
         .scrollIndicators(.hidden)
         .task(id: app.healthEnabled && app.readSteps) { await loadSteps() }
+        .task { await AdaptiveData.loadWorkouts(app: app, health: health) }
     }
 
     private func stepsSub(days: Int) -> String {

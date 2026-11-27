@@ -82,12 +82,35 @@ struct ProfileView: View {
                 // Goals
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Daily goals").font(.manrope(17, .bold)).padding(.bottom, 6)
-                    GoalRow(name: "Calories", value: $app.goals.kcal, step: 50, unit: " kcal")
+                    if app.adaptiveOn {
+                        HStack(alignment: .firstTextBaseline) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Calories").font(.manrope(15, .semibold))
+                                Text("Adaptive · \(paceLabel(app.adaptivePace))")
+                                    .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+                            }
+                            Spacer()
+                            Text("\(app.goals.kcal.kcalString) kcal").font(.manrope(16, .bold)).monospacedDigit()
+                        }
+                        .frame(minHeight: 52)
+                    } else {
+                        GoalRow(name: "Calories", value: $app.goals.kcal, step: 50, unit: " kcal")
+                    }
                     GoalRow(name: "Protein", value: $app.goals.p, step: 5, unit: " g")
                     GoalRow(name: "Carbs", value: $app.goals.c, step: 5, unit: " g")
                     GoalRow(name: "Fat", value: $app.goals.f, step: 5, unit: " g")
                     GoalRow(name: "Steps", value: $app.stepGoal, step: 500, unit: "")
                     Divider().overlay(Theme.border).padding(.vertical, 6)
+                    Toggle(isOn: $app.adaptiveOn) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Adaptive target").font(.manrope(15, .semibold))
+                            Text("Weekly suggestions from your real maintenance (Week › Maintenance). Off: set calories by hand.")
+                                .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .tint(Theme.switchOn)
+                    .frame(minHeight: 52)
                     Toggle(isOn: $app.addWorkoutCalories) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Add workout calories").font(.manrope(15, .semibold))

@@ -39,6 +39,7 @@ private struct DayContent: View {
                                     prev: { app.dayOffset -= 1 },
                                     next: { if app.dayOffset < 0 { app.dayOffset += 1 } })
                 }
+                if app.dayOffset == 0 && app.adaptiveOn { CheckInSlot() }
                 SummaryCard(title: "Summary", totals: total, goals: app.goals,
                             bonus: app.workoutBonus(on: dayKey, health: health))
                 ForEach(Slot.allCases) { slot in
@@ -313,5 +314,26 @@ private struct CopyToDaySheet: View {
             }
             .padding(Theme.pagePadding)
         }
+    }
+}
+
+/// Loads everything the adaptive estimate needs and shows the check-in card when it's due.
+private struct CheckInSlot: View {
+    @Environment(AppState.self) private var app
+    @Environment(HealthKitManager.self) private var health
+    @Query private var entries: [Entry]
+    @Query private var foods: [Food]
+    @Query private var meals: [Meal]
+    @Query private var weights: [WeightReading]
+
+    var body: some View {
+        let est = AdaptiveData.estimate(entries: entries, catalog: Catalog(foods: foods, meals: meals),
+                                        weights: weights, app: app, health: health)
+        Group {
+            if AdaptiveData.checkInDue(est, app: app) {
+                CheckInCard(estimate: est)
+            }
+        }
+        .task { await AdaptiveData.loadWorkouts(app: app, health: health) }
     }
 }
