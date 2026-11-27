@@ -27,6 +27,7 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_CFBundleDisplayName: Sage
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_NSCameraUsageDescription: Sage uses the camera to scan barcodes on food packs.
         INFOPLIST_KEY_NSHealthShareUsageDescription: Sage reads your weight, steps and workouts from Apple Health to chart your progress and adjust your calorie budget.
         INFOPLIST_KEY_NSHealthUpdateUsageDescription: Sage saves the calories, protein, carbs and fat you log to Apple Health.

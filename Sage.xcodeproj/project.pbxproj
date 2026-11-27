@@ -201,6 +201,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Sage-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Sage;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Sage uses the camera to scan barcodes on food packs.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Sage reads your weight, steps and workouts from Apple Health to chart your progress and adjust your calorie budget.";
@@ -238,6 +239,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Sage-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Sage;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Sage uses the camera to scan barcodes on food packs.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Sage reads your weight, steps and workouts from Apple Health to chart your progress and adjust your calorie budget.";
