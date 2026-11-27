@@ -55,7 +55,7 @@ struct LogSheet: View {
                                date: request.date, slot: $slot)
                 } else {
                     LogListView(foods: foods, meals: meals, catalog: catalog, recent: recentEntries,
-                                date: request.date, slot: $slot, path: $path)
+                                date: request.date, startScan: request.startScan, slot: $slot, path: $path)
                 }
             }
             .navigationDestination(for: LogRoute.self) { route in
@@ -153,8 +153,11 @@ private struct LogListView: View {
 
     enum RemoteState: Equatable { case idle, loading, failed(String) }
 
-    init(foods: [Food], meals: [Meal], catalog: Catalog, recent: [Entry], date: String,
+    private let startScan: Bool
+
+    init(foods: [Food], meals: [Meal], catalog: Catalog, recent: [Entry], date: String, startScan: Bool = false,
          slot: Binding<Slot>, path: Binding<[LogRoute]>) {
+        self.startScan = startScan
         self.foods = foods
         self.meals = meals
         self.catalog = catalog
@@ -214,6 +217,13 @@ private struct LogListView: View {
                 .presentationDetents([.medium, .large])
                 .presentationCornerRadius(28)
                 .presentationBackground(Theme.background)
+        }
+        .task {
+            // Opened from the widget's Scan button: go straight to the camera.
+            if startScan {
+                try? await Task.sleep(for: .milliseconds(450))
+                scanning = true
+            }
         }
         .fullScreenCover(isPresented: $scanning) {
             BarcodeScannerSheet { code in

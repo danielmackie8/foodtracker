@@ -21,6 +21,8 @@ struct LogRequest: Identifiable {
     var editing: Entry?
     /// Food estimated by Claude, opened from a sage:// link.
     var imported: ClaudeImport? = nil
+    /// Open the barcode scanner straight away (from the widget's Scan button).
+    var startScan: Bool = false
 }
 
 /// UI state plus persisted settings (goals, Health toggles).
@@ -128,8 +130,38 @@ final class AppState {
     /// Logging from the Day tab goes to the day on screen; everywhere else logs to today.
     var logDateKey: String { tab == .day ? DayKey.key(dayDate) : DayKey.todayKey }
 
-    func openLog(slot: Slot? = nil) {
-        logRequest = LogRequest(slot: slot ?? .suggested(), date: logDateKey)
+    func openLog(slot: Slot? = nil, scan: Bool = false) {
+        logRequest = LogRequest(slot: slot ?? .suggested(), date: logDateKey, startScan: scan)
+    }
+
+    /// Handles sage:// links from the widget (day, log, scan, claude) and from Claude (food to add).
+    func handle(url: URL) {
+        switch url.host?.lowercased() {
+        case "day":
+            tab = .day
+            dayOffset = 0
+        case "scan":
+            tab = .day
+            dayOffset = 0
+            openLog(scan: true)
+        case "claude":
+            tab = .day
+            dayOffset = 0
+            if let text = UIPasteboard.general.string, let payload = ClaudeImport.parse(text) {
+                openImport(payload)
+            } else {
+                openLog()
+                showToast("Copy Claude's estimate first, then tap ✦")
+            }
+        default:
+            if let payload = ClaudeImport.parse(url: url) {
+                openImport(payload)
+            } else {
+                tab = .day
+                dayOffset = 0
+                openLog()
+            }
+        }
     }
 
     /// Opens the log sheet on Claude's estimate (from a sage:// link).

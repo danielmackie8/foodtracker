@@ -41,13 +41,7 @@ struct RootView: View {
                 .presentationCornerRadius(28)
                 .presentationBackground(Theme.background)
         }
-        .onOpenURL { url in
-            if let payload = ClaudeImport.parse(url: url) {
-                app.openImport(payload)
-            } else {
-                app.showToast("That link didn't contain any food")
-            }
-        }
+        .onOpenURL { url in app.handle(url: url) }
         .task { app.checkClipboardForClaude() }
         .task { _ = await ProductDatabase.shared.prepare() }
         .task { await syncWeightIfNeeded() }
@@ -62,11 +56,17 @@ struct RootView: View {
         // …and push shortly after any local change.
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             cloud.scheduleSync(context: context, app: app, health: health)
+            WidgetBridge.update(context: context, app: app, health: health)
         }
+        // Keep the home-screen widget current.
+        .task { WidgetBridge.update(context: context, app: app, health: health) }
+        .onChange(of: app.goals) { _, _ in WidgetBridge.update(context: context, app: app, health: health) }
+        .onChange(of: health.burnt(on: DayKey.todayKey)) { _, _ in WidgetBridge.update(context: context, app: app, health: health) }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:
                 app.backgroundedAt = .now
+                WidgetBridge.update(context: context, app: app, health: health)
             case .active:
                 app.returnToTodayIfAway()
                 app.checkClipboardForClaude()
