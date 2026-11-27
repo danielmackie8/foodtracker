@@ -32,6 +32,8 @@ final class AppState {
     var tab: AppTab = .day
     var dayOffset = 0
     var weekOffset = 0
+    var monthOffset = 0
+    var weekMode: WeekMode = .week
     var logRequest: LogRequest?
     var toast: String?
     @ObservationIgnored private var toastTask: Task<Void, Never>?
@@ -96,6 +98,7 @@ final class AppState {
         tab = .day
         dayOffset = 0
         weekOffset = 0
+        monthOffset = 0
     }
 
     // MARK: Claude estimates on the clipboard

@@ -6,7 +6,11 @@ struct WeekView: View {
 
     var body: some View {
         let monday = DayKey.add(app.weekOffset * 7, to: DayKey.monday(of: .now))
-        WeekContent(monday: monday).id(app.weekOffset)
+        if app.weekMode == .month {
+            MonthContent()
+        } else {
+            WeekContent(monday: monday).id(app.weekOffset)
+        }
     }
 }
 
@@ -62,6 +66,8 @@ private struct WeekContent: View {
                                     prev: { app.weekOffset -= 1 },
                                     next: { if app.weekOffset < 0 { app.weekOffset += 1 } })
                 }
+                PillPicker(options: [(WeekMode.week, "Week"), (.month, "Month")],
+                           selection: Binding(get: { app.weekMode }, set: { app.weekMode = $0 }))
 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: Theme.gap), GridItem(.flexible(), spacing: Theme.gap)], spacing: Theme.gap) {
                     let diff = avg.kcal - goals.kcal
