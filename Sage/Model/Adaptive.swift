@@ -12,6 +12,16 @@ import Foundation
 struct AdaptiveEstimate {
     enum Confidence { case learning, rough, good }
 
+    /// Lowest target Sage will ever suggest. 1,200 is a common floor for women; for men
+    /// 1,500 is the usual minimum, and Sage doesn't know which applies, so it uses the safer one.
+    static let minimumTarget = 1500.0
+    /// Never suggest eating more than 25% below maintenance.
+    static let maxDeficitShare = 0.25
+    /// Weight change faster than this over the window is treated as water/noise and capped.
+    static let maxKgPerWeek = 1.0
+    /// Maintenance outside this range (before workouts) is implausible for an adult: don't suggest.
+    static let plausible = 1600.0...4500.0
+
     var confidence: Confidence
     /// Maintenance before workouts (kcal/day), rounded to 10. Nil while learning.
     var maintenance: Double?
@@ -26,6 +36,8 @@ struct AdaptiveEstimate {
     var windowDays: Int
     /// Maintenance as it was at the end of each of the last few weeks (oldest first).
     var history: [Double]
+    /// The estimate came out implausible (usually unlogged days or noisy weigh-ins).
+    var unusual = false
 
     static let kcalPerKg = 7700.0
     static let minDays = 14
@@ -33,17 +45,32 @@ struct AdaptiveEstimate {
 
     var isReady: Bool { confidence != .learning }
 
-    /// Daily target for a pace in kg/week (0 = maintain), never below 1,200.
+    /// Daily target for a pace in kg/week (0 = maintain). Never below 1,500 kcal and never
+    /// more than 25% under maintenance.
     func target(pace: Double) -> Double? {
         guard let maintenance else { return nil }
-        let t = maintenance - pace * Self.kcalPerKg / 7
-        return max(1200, (t / 10).rounded() * 10)
+        let wanted = maintenance - pace * Self.kcalPerKg / 7
+        let floor = max(Self.minimumTarget, maintenance * (1 - Self.maxDeficitShare))
+        return (max(floor, wanted) / 10).rounded() * 10
+    }
+
+    /// True when the safety limits stop `pace` from being reached.
+    func isLimited(pace: Double) -> Bool {
+        guard let maintenance, let t = target(pace: pace) else { return false }
+        return t > maintenance - pace * Self.kcalPerKg / 7 + 5
+    }
+
+    /// The actual weekly loss the limited target gives.
+    func effectivePace(pace: Double) -> Double {
+        guard let maintenance, let t = target(pace: pace) else { return pace }
+        return max(0, (maintenance - t) * 7 / Self.kcalPerKg)
     }
 
     /// When the trend reaches `goal` at `pace` kg/week, if it's below the current trend.
     func goalDate(goal: Double?, pace: Double, from today: Date = DayKey.today) -> Date? {
-        guard let goal, let trendWeight, pace > 0, trendWeight > goal else { return nil }
-        let weeks = (trendWeight - goal) / pace
+        let real = effectivePace(pace: pace)
+        guard let goal, let trendWeight, real > 0.01, trendWeight > goal else { return nil }
+        let weeks = (trendWeight - goal) / real
         return DayKey.add(Int((weeks * 7).rounded()), to: today)
     }
 
@@ -89,24 +116,37 @@ struct AdaptiveEstimate {
             }
         }
         let inWindow = weights.filter { $0.date >= start && $0.date < end }
-        let slopePerDay = regressionSlope(inWindow) ?? 0
+        let cap = maxKgPerWeek / 7
+        let slopePerDay = min(cap, max(-cap, regressionSlope(inWindow) ?? 0))
         let avgIntake = intake.isEmpty ? 0 : intake.reduce(0, +) / Double(intake.count)
         let avgWorkout = workouts.isEmpty ? 0 : workouts.reduce(0, +) / Double(workouts.count)
 
         let spanDays = inWindow.count > 1
             ? (inWindow.last!.date.timeIntervalSince(inWindow.first!.date) / 86400) : 0
-        let enough = intake.count >= minDays && inWindow.count >= minWeighIns && spanDays >= 10
+        // With under three weeks of food logged, ask for more weigh-ins so a couple of
+        // heavy or light readings can't swing the slope.
+        let neededWeighIns = intake.count >= 21 ? minWeighIns : 8
+        let enough = intake.count >= minDays && inWindow.count >= neededWeighIns && spanDays >= 10
         let confidence: Confidence = !enough ? .learning
             : (intake.count >= 21 && inWindow.count >= 10 ? .good : .rough)
 
         var maintenance: Double?
+        var unusual = false
+        var conf = confidence
         if enough {
             let total = avgIntake - slopePerDay * kcalPerKg
-            maintenance = ((total - avgWorkout) / 10).rounded() * 10
+            let base = ((total - avgWorkout) / 10).rounded() * 10
+            if plausible.contains(base) {
+                maintenance = base
+            } else {
+                unusual = true
+                conf = .learning
+            }
         }
-        return AdaptiveEstimate(confidence: confidence, maintenance: maintenance, avgIntake: avgIntake,
+        return AdaptiveEstimate(confidence: conf, maintenance: maintenance, avgIntake: avgIntake,
                                 avgWorkout: avgWorkout, kgPerWeek: slopePerDay * 7, trendWeight: nil,
-                                loggedDays: intake.count, weighIns: inWindow.count, windowDays: days, history: [])
+                                loggedDays: intake.count, weighIns: inWindow.count, windowDays: days,
+                                history: [], unusual: unusual)
     }
 
     /// Least-squares slope (kg per day) through the weigh-ins.

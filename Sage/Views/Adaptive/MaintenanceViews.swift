@@ -86,7 +86,9 @@ private struct LearningView: View {
     let estimate: AdaptiveEstimate
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Keep logging and weighing in, and Sage will work out how much you really burn.")
+            Text(estimate.unusual
+                 ? "The numbers so far don't add up to a realistic maintenance, usually because some days weren't fully logged or weigh-ins are jumping around. Keep logging everything and weighing in, and Sage will try again."
+                 : "Keep logging and weighing in, and Sage will work out how much you really burn.")
                 .font(.manrope(13, .medium)).foregroundStyle(Theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
             GeometryReader { geo in
@@ -100,7 +102,7 @@ private struct LearningView: View {
             HStack {
                 Text("\(min(estimate.loggedDays, AdaptiveEstimate.minDays)) of \(AdaptiveEstimate.minDays) days logged")
                 Spacer()
-                Text("\(estimate.weighIns) of \(AdaptiveEstimate.minWeighIns)+ weigh-ins")
+                Text("\(estimate.weighIns) of \(estimate.loggedDays >= 21 ? AdaptiveEstimate.minWeighIns : 8)+ weigh-ins")
             }
             .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
         }
@@ -214,7 +216,7 @@ struct MaintenanceView: View {
                             .buttonStyle(PrimaryButtonStyle())
                         }
                     }
-                    Text("Protein stays at \(app.goals.p.grams) g; carbs and fat adjust to fit. Workouts are still added on the days you train.")
+                    Text("Sage never suggests less than 1,500 kcal or more than 25% below your maintenance. Protein stays at \(app.goals.p.grams) g; carbs and fat adjust to fit. Workouts are still added on the days you train.")
                         .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
@@ -245,7 +247,9 @@ struct MaintenanceView: View {
         if let goal = app.goalWeight, let date = estimate.goalDate(goal: goal, pace: pace) {
             parts.append("\(goal.clean) kg around \(DayKey.short(date))")
         }
-        if pace >= 0.75 { parts.append("hard to sustain") }
+        if estimate.isLimited(pace: pace) {
+            parts.append("limited to a safe \(estimate.effectivePace(pace: pace).clean2) kg/wk")
+        } else if pace >= 0.75 { parts.append("hard to sustain") }
         if pace == 0.25 { parts.append("gentle") }
         return parts.isEmpty ? "\(Int((pace * AdaptiveEstimate.kcalPerKg / 7).rounded())) kcal a day below maintenance" : parts.joined(separator: " · ")
     }
@@ -356,7 +360,7 @@ struct CheckInCard: View {
     @Environment(AppState.self) private var app
 
     var body: some View {
-        if let target = estimate.target(pace: app.adaptivePace), let maintenance = estimate.maintenance {
+        if let target = AdaptiveData.checkInTarget(estimate, app: app), let maintenance = estimate.maintenance {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text(app.lastCheckIn == nil ? "Your maintenance is ready" : "Weekly check-in").font(.manrope(17, .bold))
@@ -402,5 +406,13 @@ struct CheckInCard: View {
             s += " At \(paceLabel(app.adaptivePace)) you'd reach \(goal.clean) kg around \(DayKey.short(date))."
         }
         return s
+    }
+}
+
+private extension Double {
+    /// 0.37 → "0.37", 0.5 → "0.5"
+    var clean2: String {
+        let r = (self * 100).rounded() / 100
+        return r.clean
     }
 }

@@ -26,10 +26,19 @@ enum AdaptiveData {
 
     /// Shown on Day (today) on Mondays, or as soon as the first estimate is ready.
     static func checkInDue(_ est: AdaptiveEstimate, app: AppState) -> Bool {
-        guard app.adaptiveOn, est.isReady, est.target(pace: app.adaptivePace) != nil else { return false }
+        guard app.adaptiveOn, est.isReady, let suggested = checkInTarget(est, app: app),
+              abs(suggested - app.goals.kcal) >= 20 else { return false }
         guard app.lastCheckIn != thisMonday else { return false }
         let isMonday = DayKey.cal.component(.weekday, from: .now) == 2
         return isMonday || app.lastCheckIn == nil
+    }
+
+    /// The weekly check-in moves the target at most 250 kcal at a time.
+    static func checkInTarget(_ est: AdaptiveEstimate, app: AppState) -> Double? {
+        guard let target = est.target(pace: app.adaptivePace) else { return nil }
+        let current = app.goals.kcal
+        let step = min(250, abs(target - current))
+        return ((current + (target >= current ? step : -step)) / 10).rounded() * 10
     }
 
     static func accept(_ target: Double, app: AppState) {
