@@ -15,7 +15,9 @@ struct SwipeToDelete<Content: View>: View {
     @State private var startReveal: CGFloat = 0
     @State private var horizontal: Bool?
     @State private var rowWidth: CGFloat = 320
-    @State private var lastDragEnd = Date.distantPast
+    /// Last time a finger moved on this row (any direction). A tap that arrives within
+    /// 0.5 s of movement is the end of a swipe or scroll, not a tap.
+    @State private var lastMovement = Date.distantPast
 
     private let buttonWidth: CGFloat = 92
     private var fullSwipe: CGFloat { max(buttonWidth + 60, rowWidth * 0.55) }
@@ -28,7 +30,7 @@ struct SwipeToDelete<Content: View>: View {
             .onTapGesture {
                 if reveal > 0 { close(); return }
                 // Ignore a "tap" that is really the end of a swipe.
-                guard Date().timeIntervalSince(lastDragEnd) > 0.35 else { return }
+                guard Date().timeIntervalSince(lastMovement) > 0.5 else { return }
                 onTap?()
             }
             .offset(x: -reveal)
@@ -62,10 +64,12 @@ struct SwipeToDelete<Content: View>: View {
     }
 
     private var drag: some Gesture {
-        DragGesture(minimumDistance: 12)
+        DragGesture(minimumDistance: 6)
             .onChanged { v in
+                lastMovement = Date()
                 // Decide once per drag whether it's a sideways swipe or a scroll.
                 if horizontal == nil {
+                    guard abs(v.translation.width) >= 10 || abs(v.translation.height) >= 10 else { return }
                     horizontal = abs(v.translation.width) > abs(v.translation.height) * 1.2
                     startReveal = reveal
                 }
@@ -73,9 +77,9 @@ struct SwipeToDelete<Content: View>: View {
                 reveal = min(max(0, startReveal - v.translation.width), rowWidth)
             }
             .onEnded { v in
+                lastMovement = Date()
                 defer { horizontal = nil }
                 guard horizontal == true else { return }
-                lastDragEnd = Date()
                 let projected = startReveal - v.predictedEndTranslation.width
                 if reveal > fullSwipe || projected > rowWidth * 0.9 {
                     commitDelete()
