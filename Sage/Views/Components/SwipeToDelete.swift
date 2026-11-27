@@ -2,9 +2,12 @@ import SwiftUI
 
 /// Swipe a row to the left to reveal a red Delete button on its right.
 /// A long swipe (past about half the row) deletes straight away.
-/// Tapping the row while it's open closes it.
+/// Tapping the row runs `onTap`; while it's open, a tap just closes it.
+/// The row handles its own taps (instead of wrapping a Button), so lifting a finger
+/// at the end of a swipe never counts as a tap.
 struct SwipeToDelete<Content: View>: View {
     var onDelete: () -> Void
+    var onTap: (() -> Void)? = nil
     @ViewBuilder var content: Content
 
     /// How far the row has slid left (always ≥ 0).
@@ -12,6 +15,7 @@ struct SwipeToDelete<Content: View>: View {
     @State private var startReveal: CGFloat = 0
     @State private var horizontal: Bool?
     @State private var rowWidth: CGFloat = 320
+    @State private var lastDragEnd = Date.distantPast
 
     private let buttonWidth: CGFloat = 92
     private var fullSwipe: CGFloat { max(buttonWidth + 60, rowWidth * 0.55) }
@@ -20,16 +24,14 @@ struct SwipeToDelete<Content: View>: View {
     var body: some View {
         content
             .background(Theme.card)
-            .offset(x: -reveal)
-            .overlay {
-                // While open, a tap on the row closes it instead of opening the entry.
-                if reveal > 0 {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .offset(x: -reveal)
-                        .onTapGesture { close() }
-                }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if reveal > 0 { close(); return }
+                // Ignore a "tap" that is really the end of a swipe.
+                guard Date().timeIntervalSince(lastDragEnd) > 0.35 else { return }
+                onTap?()
             }
+            .offset(x: -reveal)
             .background(alignment: .trailing) {
                 // Delete button, revealed behind the row as it slides left.
                 Button(role: .destructive) { commitDelete() } label: {
@@ -54,6 +56,8 @@ struct SwipeToDelete<Content: View>: View {
             .clipped()
             .simultaneousGesture(drag)
             .sensoryFeedback(.impact(weight: .medium), trigger: pastFullSwipe) { _, new in new }
+            .accessibilityAddTraits(onTap == nil ? [] : .isButton)
+            .accessibilityAction { onTap?() }
             .accessibilityAction(named: "Delete") { onDelete() }
     }
 
@@ -71,6 +75,7 @@ struct SwipeToDelete<Content: View>: View {
             .onEnded { v in
                 defer { horizontal = nil }
                 guard horizontal == true else { return }
+                lastDragEnd = Date()
                 let projected = startReveal - v.predictedEndTranslation.width
                 if reveal > fullSwipe || projected > rowWidth * 0.9 {
                     commitDelete()

@@ -135,10 +135,9 @@ private struct SlotCard: View {
             // The card holds only food, then an "Add to …" row.
             VStack(spacing: 0) {
                 ForEach(entries) { e in
-                    SwipeToDelete(onDelete: { delete(e) }) {
-                        Button { app.openEdit(e) } label: {
-                            let m = catalog.macros(of: e)
-                            HStack(spacing: 12) {
+                    SwipeToDelete(onDelete: { delete(e) }, onTap: { app.openEdit(e) }) {
+                        let m = catalog.macros(of: e)
+                        HStack(spacing: 12) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(catalog.name(of: e)).font(.manrope(15, .semibold)).lineLimit(1)
                                     Text("\(e.time) · \(catalog.amountLabel(of: e))")
@@ -152,8 +151,6 @@ private struct SlotCard: View {
                             }
                             .padding(.horizontal, 16)
                             .frame(minHeight: 60)
-                        }
-                        .buttonStyle(PressableStyle())
                         .accessibilityHint("Edit, or swipe left to delete")
                         .contextMenu {
                             Button { copy([e], to: DayKey.todayKey) } label: {
