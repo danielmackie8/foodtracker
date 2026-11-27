@@ -86,7 +86,7 @@ struct DayStats {
         guard t.count > 0 else { return .notLogged }
         let ratio = t.macros.kcal / max(budget(key), 1)
         if ratio > 1.05 { return .over }
-        if ratio >= 0.85 { return .onBudget }
+        if ratio >= 0.7 { return .onBudget }
         return .under
     }
 }
@@ -103,14 +103,22 @@ private struct CalendarCard: View {
         let lead = (DayKey.cal.component(.weekday, from: first) + 5) % 7
         let columns = Array(repeating: GridItem(.flexible(), spacing: 5), count: 7)
         VStack(alignment: .leading, spacing: 10) {
-            LazyVGrid(columns: columns, spacing: 5) {
-                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, d in
-                    Text(d).font(.manrope(11, .bold)).foregroundStyle(Theme.muted)
-                }
-                ForEach(0..<lead, id: \.self) { _ in Color.clear.frame(height: 1) }
-                ForEach(0..<days, id: \.self) { i in
-                    let date = DayKey.add(i, to: first)
-                    DayCell(date: date, stats: stats) { open(date) }
+            // One ForEach with unique ids: weekday letters, blanks before the 1st, then the days.
+            let cells: [CalendarSlot] =
+                ["M", "T", "W", "T", "F", "S", "S"].enumerated().map { CalendarSlot.weekday($0.offset, $0.element) }
+                + (0..<lead).map { CalendarSlot.blank($0) }
+                + (0..<days).map { CalendarSlot.day(DayKey.add($0, to: first)) }
+            LazyVGrid(columns: columns, spacing: 6) {
+                ForEach(cells) { slot in
+                    switch slot {
+                    case .weekday(_, let letter):
+                        Text(letter).font(.manrope(11, .bold)).foregroundStyle(Theme.muted)
+                            .frame(maxWidth: .infinity).padding(.bottom, 2)
+                    case .blank:
+                        Color.clear.aspectRatio(1, contentMode: .fit)
+                    case .day(let date):
+                        DayCell(date: date, stats: stats) { open(date) }
+                    }
                 }
             }
             Legend()
@@ -143,32 +151,36 @@ private struct DayCell: View {
             case .notLogged, .future: return (.clear, Theme.muted)
             }
         }()
+        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
         Button(action: action) {
-            VStack(spacing: 0) {
-                Text("\(day)").font(.manrope(12, .bold))
-                if status != .notLogged && status != .future {
-                    Text(String(format: "%.1fk", kcal / 1000)).font(.manrope(8.5, .bold)).opacity(0.85)
+            // A full-width square tile, whatever the content.
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    VStack(spacing: 1) {
+                        Text("\(day)").font(.manrope(13, .heavy))
+                        if status != .notLogged && status != .future {
+                            Text(String(format: "%.1fk", kcal / 1000)).font(.manrope(9, .bold)).opacity(0.85)
+                        }
+                    }
+                    .foregroundStyle(status == .future ? Theme.dashed : text)
                 }
-            }
-            .foregroundStyle(status == .future ? Theme.dashed : text)
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .background(fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay {
-                if status == .notLogged {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Theme.dashed, style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
+                .background(fill, in: shape)
+                .overlay {
+                    if status == .notLogged {
+                        shape.strokeBorder(Theme.dashed, style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
+                    }
+                    if key == DayKey.todayKey {
+                        shape.strokeBorder(Theme.text, lineWidth: 2)
+                    }
                 }
-                if key == DayKey.todayKey {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.text, lineWidth: 2)
+                .overlay(alignment: .topTrailing) {
+                    if stats.proteinHit(key) {
+                        Circle().fill(status == .under ? Theme.accent : Color.white)
+                            .frame(width: 6, height: 6)
+                            .padding(5)
+                    }
                 }
-            }
-            .overlay(alignment: .bottom) {
-                if stats.proteinHit(key) {
-                    Circle().fill(status == .under ? Theme.accent : Color.white)
-                        .frame(width: 5, height: 5).padding(.bottom, 3)
-                }
-            }
         }
         .buttonStyle(PressableStyle())
         .disabled(status == .future)
@@ -233,9 +245,11 @@ private struct MonthTiles: View {
         let monthWeights = weights.filter { keys.contains($0.date) }
 
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-            tile("Avg calories", logged.isEmpty ? "—" : avgK.kcalString, "\(logged.count) days logged")
+            tile("Avg calories", logged.isEmpty ? "—" : avgK.kcalString,
+                 "\(logged.count) day\(logged.count == 1 ? "" : "s") logged")
             tile("On budget", "\(onBudget) / \(logged.count)", "days")
-            tile("Avg protein", logged.isEmpty ? "—" : "\(avgP.grams) g", "\(proteinDays) days ≥ \(app.goals.p.grams) g")
+            tile("Avg protein", logged.isEmpty ? "—" : "\(avgP.grams) g",
+                 "\(proteinDays) day\(proteinDays == 1 ? "" : "s") ≥ \(app.goals.p.grams) g")
             if let a = monthWeights.first, let b = monthWeights.last, monthWeights.count > 1 {
                 tile("Weight", WeightStats.signed(b.kg - a.kg).replacingOccurrences(of: "±", with: "") + " kg",
                      String(format: "%.1f → %.1f kg", a.kg, b.kg))
@@ -370,5 +384,19 @@ struct Streak {
 
     static func nextMilestone(after current: Int) -> Int? {
         [7, 14, 21, 30, 50, 75, 100, 150, 200, 365, 500, 730].first { $0 > current }
+    }
+}
+
+private enum CalendarSlot: Identifiable {
+    case weekday(Int, String)
+    case blank(Int)
+    case day(Date)
+
+    var id: String {
+        switch self {
+        case .weekday(let i, _): return "w\(i)"
+        case .blank(let i): return "b\(i)"
+        case .day(let d): return "d" + DayKey.key(d)
+        }
     }
 }
