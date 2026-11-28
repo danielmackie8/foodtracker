@@ -158,9 +158,20 @@ final class AppState {
         goalHistory.append(GoalChange(from: today, kcal: goals.kcal, before: before))
     }
 
+    /// Workout calories added to a day's budget (0 when that's switched off).
+    /// With the adaptive target ready, your usual training is already in the target,
+    /// so only the part of a workout day above your average is added.
     func workoutBonus(on day: String, health: HealthKitManager) -> Double {
-        showsWorkouts && addWorkoutCalories ? health.burnt(on: day) : 0
+        guard showsWorkouts && addWorkoutCalories else { return 0 }
+        let burnt = health.burnt(on: day)
+        if adaptiveOn, let typical = typicalWorkout {
+            return max(0, burnt - typical)
+        }
+        return burnt
     }
+
+    /// Average workout kcal per day from the adaptive estimate (nil until it's ready).
+    var typicalWorkout: Double?
 
     /// The calorie goal plus any workout bonus for that day.
     func budget(on day: String, health: HealthKitManager) -> Double {

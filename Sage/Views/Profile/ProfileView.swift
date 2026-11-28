@@ -138,7 +138,9 @@ struct ProfileView: View {
                     Toggle(isOn: $app.addWorkoutCalories) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Add workout calories").font(.manrope(15, .semibold))
-                            Text("Calories burnt in workouts raise that day's budget")
+                            Text(app.adaptiveOn
+                                 ? "With the adaptive target, only workouts bigger than your usual add extra"
+                                 : "Calories burnt in workouts raise that day's budget")
                                 .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
                         }
                     }

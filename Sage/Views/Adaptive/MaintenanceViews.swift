@@ -151,7 +151,7 @@ struct MaintenanceView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(maintenance.kcalString).bigNumber(38)
-                            Text("kcal / day before workouts").font(.manrope(13, .bold)).foregroundStyle(Theme.muted)
+                            Text("kcal / day").font(.manrope(13, .bold)).foregroundStyle(Theme.muted)
                         }
                         Text("Last \(estimate.windowDays) days · \(estimate.loggedDays) days logged · \(estimate.weighIns) weigh-ins")
                             .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
@@ -216,7 +216,7 @@ struct MaintenanceView: View {
                             .buttonStyle(PrimaryButtonStyle())
                         }
                     }
-                    Text("Sage never suggests less than 1,500 kcal or more than 25% below your maintenance. Protein stays at \(app.goals.p.grams) g; carbs and fat adjust to fit. Workouts are still added on the days you train.")
+                    Text("Sage never suggests less than 1,500 kcal or more than 25% below your maintenance. Protein stays at \(app.goals.p.grams) g; carbs and fat adjust to fit. Your usual workouts are already counted, so the target is the same every day; unusually big workout days add the extra.")
                         .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
@@ -264,9 +264,9 @@ struct MaintenanceView: View {
         } else {
             text += "That's about \(abs(stored).kcalString) kcal a day stored, "
         }
-        text += "so you burn roughly \((maintenance + estimate.avgWorkout).kcalString)"
+        text += "so you burn roughly \(maintenance.kcalString) a day"
         if estimate.avgWorkout >= 1 {
-            text += ", or \(maintenance.kcalString) before your workouts (\(estimate.avgWorkout.kcalString) a day on average). Workouts are added on top on the days you train."
+            text += ", including your usual workouts (\(estimate.avgWorkout.kcalString) a day on average). Your target already allows for them; only an unusually big workout day adds the extra above that."
         } else {
             text += "."
         }
@@ -409,7 +409,7 @@ struct CheckInCard: View {
     }
 
     private func summary(_ maintenance: Double) -> String {
-        var s = "You burn about \(maintenance.kcalString) kcal a day before workouts. Your weight trend is \(estimate.kgPerWeek >= 0 ? "+" : "−")\(String(format: "%.2f", abs(estimate.kgPerWeek))) kg a week."
+        var s = "You burn about \(maintenance.kcalString) kcal a day, usual workouts included. Your weight trend is \(estimate.kgPerWeek >= 0 ? "+" : "−")\(String(format: "%.2f", abs(estimate.kgPerWeek))) kg a week."
         if let goal = app.goalWeight, let date = estimate.goalDate(goal: goal, pace: app.adaptivePace) {
             s += " At \(paceLabel(app.adaptivePace)) you'd reach \(goal.clean) kg around \(DayKey.short(date))."
         }

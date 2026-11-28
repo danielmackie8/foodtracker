@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// Builds the adaptive estimate from the app's data, and handles the weekly check-in.
 @MainActor
@@ -8,18 +9,30 @@ enum AdaptiveData {
         let ledger = Ledger(entries: entries, catalog: catalog)
         var intake: [String: Double] = [:]
         for key in ledger.byDate.keys { intake[key] = ledger.totals(key).macros.kcal }
-        // Workouts only come off maintenance when they're added back to the daily budget.
-        let counted = app.showsWorkouts && app.addWorkoutCalories
+        // Workouts are only used for the average ("your usual training"); maintenance includes them.
+        let readable = app.showsWorkouts
         return AdaptiveEstimate.compute(
             intakeByDay: intake,
             weights: weights.map { (date: $0.timestamp, kg: $0.kg) },
-            workoutByDay: { counted ? health.burnt(on: $0) : 0 })
+            workoutByDay: { readable ? health.burnt(on: $0) : 0 })
     }
 
     /// Workouts for the last 6 weeks, so they can be taken out of the estimate.
     static func loadWorkouts(app: AppState, health: HealthKitManager) async {
-        guard app.showsWorkouts && app.addWorkoutCalories else { return }
+        guard app.showsWorkouts else { return }
         await health.loadWorkouts(from: DayKey.add(-42, to: DayKey.today), days: 43)
+    }
+
+    /// Recalculates the estimate and remembers your average workout calories, so the daily
+    /// budget only adds workouts above your usual (see AppState.workoutBonus).
+    static func refreshTypicalWorkout(context: ModelContext, app: AppState, health: HealthKitManager) async {
+        await loadWorkouts(app: app, health: health)
+        let est = estimate(entries: (try? context.fetch(FetchDescriptor<Entry>())) ?? [],
+                           catalog: Catalog(foods: (try? context.fetch(FetchDescriptor<Food>())) ?? [],
+                                            meals: (try? context.fetch(FetchDescriptor<Meal>())) ?? []),
+                           weights: (try? context.fetch(FetchDescriptor<WeightReading>())) ?? [],
+                           app: app, health: health)
+        app.typicalWorkout = est.isReady ? est.avgWorkout : nil
     }
 
     static var thisMonday: String { DayKey.key(DayKey.monday(of: .now)) }

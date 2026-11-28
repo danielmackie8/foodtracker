@@ -7,8 +7,9 @@ import Foundation
 ///  - weight change per day = the least-squares slope through the weigh-ins in the window
 ///    (robust to day-to-day water swings);
 ///  - 1 kg of body weight ≈ 7,700 kcal, so maintenance = intake − slope × 7,700;
-///  - workout calories (from Apple Health) are subtracted, so the figure is maintenance
-///    *before* workouts — the app keeps adding each day's workouts on top, so nothing is counted twice.
+///  - the result already includes your usual workouts, so the target is one fixed daily number.
+///    Only unusually big workout days (above your average) add extra, so nothing is counted twice
+///    and Apple Watch's generous workout estimates aren't eaten back.
 struct AdaptiveEstimate {
     enum Confidence { case learning, rough, good }
 
@@ -19,11 +20,11 @@ struct AdaptiveEstimate {
     static let maxDeficitShare = 0.25
     /// Weight change faster than this over the window is treated as water/noise and capped.
     static let maxKgPerWeek = 1.0
-    /// Maintenance outside this range (before workouts) is implausible for an adult: don't suggest.
+    /// Maintenance outside this range is implausible for an adult: don't suggest.
     static let plausible = 1600.0...4500.0
 
     var confidence: Confidence
-    /// Maintenance before workouts (kcal/day), rounded to 10. Nil while learning.
+    /// Maintenance including your usual workouts (kcal/day), rounded to 10. Nil while learning.
     var maintenance: Double?
     var avgIntake: Double
     var avgWorkout: Double
@@ -135,7 +136,7 @@ struct AdaptiveEstimate {
         var conf = confidence
         if enough {
             let total = avgIntake - slopePerDay * kcalPerKg
-            let base = ((total - avgWorkout) / 10).rounded() * 10
+            let base = (total / 10).rounded() * 10
             if plausible.contains(base) {
                 maintenance = base
             } else {

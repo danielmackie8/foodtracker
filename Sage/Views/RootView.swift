@@ -59,7 +59,10 @@ struct RootView: View {
             WidgetBridge.update(context: context, app: app, health: health)
         }
         // Keep the home-screen widget current.
-        .task { WidgetBridge.update(context: context, app: app, health: health) }
+        .task {
+            await AdaptiveData.refreshTypicalWorkout(context: context, app: app, health: health)
+            WidgetBridge.update(context: context, app: app, health: health)
+        }
         .onChange(of: app.goals) { _, _ in WidgetBridge.update(context: context, app: app, health: health) }
         .onChange(of: health.burnt(on: DayKey.todayKey)) { _, _ in WidgetBridge.update(context: context, app: app, health: health) }
         .onChange(of: scenePhase) { _, phase in
@@ -69,6 +72,7 @@ struct RootView: View {
                 WidgetBridge.update(context: context, app: app, health: health)
             case .active:
                 app.returnToTodayIfAway()
+                Task { await AdaptiveData.refreshTypicalWorkout(context: context, app: app, health: health) }
                 app.checkClipboardForClaude()
                 Task { await syncWeightIfNeeded() }
             default:
