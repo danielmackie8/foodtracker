@@ -85,7 +85,7 @@ enum MealActions {
 
     /// Converts every entry that uses `meal` into a quick-add holding its current nutrition,
     /// so editing or deleting the meal never changes past days.
-    private static func freezeEntries(of meal: Meal, catalog: Catalog, context: ModelContext) {
+    static func freezeEntries(of meal: Meal, catalog: Catalog, context: ModelContext) {
         let id = meal.id
         let descriptor = FetchDescriptor<Entry>(predicate: #Predicate<Entry> { $0.ref == id })
         let entries = ((try? context.fetch(descriptor)) ?? []).filter { $0.kind == .meal }
@@ -99,5 +99,48 @@ enum MealActions {
             e.quickC = perServing.c
             e.quickF = perServing.f
         }
+    }
+}
+
+/// Editing and deleting foods without changing days already logged.
+@MainActor
+enum FoodActions {
+    /// Turns past entries that use `food` (directly or inside a meal) into quick-adds holding
+    /// their current numbers. Call before changing or deleting the food.
+    static func freezeHistory(of food: Food, catalog: Catalog, context: ModelContext) {
+        let id = food.id
+        let direct = ((try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate<Entry> { $0.ref == id }))) ?? [])
+            .filter { $0.kind == .food }
+        for e in direct {
+            let m = food.macros(for: e.amount)
+            e.note = food.amountLabel(e.amount)
+            e.ref = food.name
+            e.kindRaw = EntryKind.quick.rawValue
+            e.quickKcal = m.kcal; e.quickP = m.p; e.quickC = m.c; e.quickF = m.f
+            e.amount = 1
+        }
+        for meal in catalog.meals.values where meal.parts.contains(where: { $0.foodId == id }) {
+            MealActions.freezeEntries(of: meal, catalog: catalog, context: context)
+        }
+    }
+
+    static func delete(_ food: Food, catalog: Catalog, context: ModelContext) {
+        freezeHistory(of: food, catalog: catalog, context: context)
+        let id = food.id
+        for meal in catalog.meals.values where meal.parts.contains(where: { $0.foodId == id }) {
+            meal.parts.removeAll { $0.foodId == id }
+        }
+        context.delete(food)
+        try? context.save()
+    }
+
+    /// Makes a one-food favourite meal so it shows under Meals › Favourites.
+    static func favourite(_ food: Food, context: ModelContext) {
+        let nextIndex = ((try? context.fetch(FetchDescriptor<Meal>()))?.map(\.sortIndex).max() ?? 0) + 1
+        let meal = Meal(id: "m" + UUID().uuidString, name: food.name, desc: food.amountLabel(food.def),
+                        parts: [MealPart(foodId: food.id, amount: food.def)], sortIndex: nextIndex)
+        meal.favourite = true
+        context.insert(meal)
+        try? context.save()
     }
 }

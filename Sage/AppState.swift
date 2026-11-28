@@ -39,7 +39,18 @@ final class AppState {
     @ObservationIgnored private var toastTask: Task<Void, Never>?
 
     // Persisted
-    var goals: Goals { didSet { save(goals, "goals") } }
+    var goals: Goals {
+        didSet {
+            save(goals, "goals")
+            if goals.kcal != oldValue.kcal && !applyingRemote { recordGoalChange(from: oldValue.kcal) }
+        }
+    }
+    /// Calorie goal over time, so past days are judged against the target they had.
+    var goalHistory: [GoalChange] { didSet { save(goalHistory, "goalHistory") } }
+    /// Weight when the goal weight was first set (for the progress bar).
+    var goalStartWeight: Double? { didSet { defaults.set(goalStartWeight, forKey: "goalStartWeight") } }
+    var goalStartDate: String? { didSet { defaults.set(goalStartDate, forKey: "goalStartDate") } }
+    @ObservationIgnored private var applyingRemote = false
     var healthEnabled: Bool { didSet { defaults.set(healthEnabled, forKey: "healthEnabled") } }
     var readWeight: Bool { didSet { defaults.set(readWeight, forKey: "readWeight") } }
     var readSteps: Bool { didSet { defaults.set(readSteps, forKey: "readSteps") } }
@@ -66,6 +77,9 @@ final class AppState {
     init() {
         let d = UserDefaults.standard
         goals = (d.data(forKey: "goals")).flatMap { try? JSONDecoder().decode(Goals.self, from: $0) } ?? Goals()
+        goalHistory = (d.data(forKey: "goalHistory")).flatMap { try? JSONDecoder().decode([GoalChange].self, from: $0) } ?? []
+        goalStartWeight = d.object(forKey: "goalStartWeight") as? Double
+        goalStartDate = d.string(forKey: "goalStartDate")
         healthEnabled = d.bool(forKey: "healthEnabled")
         readWeight = d.object(forKey: "readWeight") as? Bool ?? true
         readSteps = d.object(forKey: "readSteps") as? Bool ?? true
@@ -128,13 +142,82 @@ final class AppState {
     var showsWorkouts: Bool { healthEnabled && readWorkouts }
 
     /// Workout calories added to a day's budget (0 when that's switched off).
+    /// The calorie goal that applied on a given day (today's goal for today and later).
+    func goalKcal(on day: String) -> Double {
+        if day >= DayKey.todayKey { return goals.kcal }
+        if let change = goalHistory.last(where: { $0.from <= day }) { return change.kcal }
+        if let first = goalHistory.first { return first.before }
+        return goals.kcal
+    }
+
+    private func recordGoalChange(from old: Double) {
+        let today = DayKey.todayKey
+        // Several changes on one day count as one, keeping the goal from before that day.
+        let before = goalHistory.first(where: { $0.from == today })?.before ?? old
+        goalHistory.removeAll { $0.from == today }
+        goalHistory.append(GoalChange(from: today, kcal: goals.kcal, before: before))
+    }
+
     func workoutBonus(on day: String, health: HealthKitManager) -> Double {
         showsWorkouts && addWorkoutCalories ? health.burnt(on: day) : 0
     }
 
     /// The calorie goal plus any workout bonus for that day.
     func budget(on day: String, health: HealthKitManager) -> Double {
-        goals.kcal + workoutBonus(on: day, health: health)
+        goalKcal(on: day) + workoutBonus(on: day, health: health)
+    }
+
+    // MARK: Settings sync
+
+    /// Settings that follow you between devices (not device-specific ones like Health access).
+    func settingsDocument() -> [String: Any] {
+        var d: [String: Any] = [
+            "goals": ["kcal": goals.kcal, "p": goals.p, "c": goals.c, "f": goals.f],
+            "goalHistory": goalHistory.map { ["from": $0.from, "kcal": $0.kcal, "before": $0.before] },
+            "stepGoal": stepGoal,
+            "adaptiveOn": adaptiveOn, "adaptivePace": adaptivePace,
+            "addWorkoutCalories": addWorkoutCalories,
+            "readWeight": readWeight, "readSteps": readSteps, "readWorkouts": readWorkouts,
+            "writeNutrition": writeNutrition,
+            "appearance": appearance.rawValue, "autoClaudePaste": autoClaudePaste,
+        ]
+        d["goalWeight"] = goalWeight ?? NSNull()
+        d["goalStartWeight"] = goalStartWeight ?? NSNull()
+        d["goalStartDate"] = goalStartDate ?? NSNull()
+        d["lastCheckIn"] = lastCheckIn ?? NSNull()
+        return d
+    }
+
+    /// Applies settings pulled from the server.
+    func apply(settings d: [String: Any]) {
+        func num(_ k: String) -> Double? { (d[k] as? NSNumber)?.doubleValue }
+        func flag(_ k: String) -> Bool? { (d[k] as? NSNumber)?.boolValue }
+        applyingRemote = true
+        defer { applyingRemote = false }
+        if let h = d["goalHistory"] as? [[String: Any]] {
+            goalHistory = h.compactMap { r in
+                guard let from = r["from"] as? String, let kcal = (r["kcal"] as? NSNumber)?.doubleValue else { return nil }
+                return GoalChange(from: from, kcal: kcal, before: (r["before"] as? NSNumber)?.doubleValue ?? kcal)
+            }
+        }
+        if let g = d["goals"] as? [String: Any] {
+            func gv(_ k: String) -> Double? { (g[k] as? NSNumber)?.doubleValue }
+            goals = Goals(kcal: gv("kcal") ?? goals.kcal, p: gv("p") ?? goals.p, c: gv("c") ?? goals.c, f: gv("f") ?? goals.f)
+        }
+        if let v = num("stepGoal") { stepGoal = v }
+        if let v = flag("adaptiveOn") { adaptiveOn = v }
+        if let v = num("adaptivePace") { adaptivePace = v }
+        if let v = flag("addWorkoutCalories") { addWorkoutCalories = v }
+        if let v = flag("readWeight") { readWeight = v }
+        if let v = flag("readSteps") { readSteps = v }
+        if let v = flag("readWorkouts") { readWorkouts = v }
+        if let v = flag("writeNutrition") { writeNutrition = v }
+        if let v = d["appearance"] as? String, let a = Appearance(rawValue: v) { appearance = a }
+        if let v = flag("autoClaudePaste") { autoClaudePaste = v }
+        goalWeight = num("goalWeight")
+        goalStartWeight = num("goalStartWeight")
+        goalStartDate = d["goalStartDate"] as? String
+        lastCheckIn = d["lastCheckIn"] as? String
     }
 
     // MARK: Navigation helpers

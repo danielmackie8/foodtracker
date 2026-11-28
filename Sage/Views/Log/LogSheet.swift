@@ -49,6 +49,9 @@ struct LogSheet: View {
             Group {
                 if let payload = request.imported {
                     ImportReviewView(payload: payload, defaultDate: request.date, catalog: catalog, slot: $slot)
+                } else if let entry = request.editing, entry.kind == .quick {
+                    QuickEditView(entry: entry, catalog: catalog,
+                                  baseTotals: dayTotals - catalog.macros(of: entry), slot: $slot)
                 } else if let entry = request.editing {
                     AmountView(target: AmountTarget(entry: entry, catalog: catalog), editing: entry,
                                catalog: catalog, baseTotals: dayTotals - catalog.macros(of: entry),

@@ -277,6 +277,7 @@ struct MaintenanceView: View {
 /// Goal weight stepper (optional).
 private struct GoalWeightRow: View {
     @Environment(AppState.self) private var app
+    @Environment(\.modelContext) private var context
     var body: some View {
         HStack(spacing: 10) {
             Text("Goal weight").font(.manrope(14, .semibold))
@@ -290,7 +291,14 @@ private struct GoalWeightRow: View {
                     .buttonStyle(CircleIconButtonStyle())
                     .accessibilityLabel("Raise goal weight")
             } else {
-                Button("Set") { app.goalWeight = 80 }
+                Button("Set") {
+                    let current = AdaptiveEstimate.smoothedTrend(
+                        ((try? context.fetch(FetchDescriptor<WeightReading>(sortBy: [SortDescriptor(\.timestamp)]))) ?? [])
+                            .map { (date: $0.timestamp, kg: $0.kg) }) ?? 85
+                    app.goalWeight = ((current - 5) * 2).rounded() / 2
+                    app.goalStartWeight = current
+                    app.goalStartDate = DayKey.todayKey
+                }
                     .font(.manrope(14, .bold)).foregroundStyle(Theme.accent)
                     .frame(minHeight: Theme.minTouch)
             }

@@ -4,6 +4,7 @@ import UIKit
 import AuthenticationServices
 
 struct ProfileView: View {
+    @State private var showFoods = false
     @Environment(AppState.self) private var app
     @Environment(HealthKitManager.self) private var health
     @Environment(\.modelContext) private var context
@@ -78,6 +79,29 @@ struct ProfileView: View {
                         .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
                 }
                 .card()
+
+                WeightGoalCard()
+
+                // Your foods
+                Button { showFoods = true } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "carrot").font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.accent)
+                            .frame(width: 36, height: 36)
+                            .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Your foods").font(.manrope(16, .bold)).foregroundStyle(Theme.text)
+                            Text("Edit, delete or add foods; fibre, sugar and salt").font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.muted)
+                    }
+                    .card(padding: 14)
+                }
+                .buttonStyle(PressableStyle())
+                .sheet(isPresented: $showFoods) {
+                    NavigationStack { FoodsListView() }
+                        .presentationBackground(Theme.background)
+                }
 
                 // Goals
                 VStack(alignment: .leading, spacing: 4) {
@@ -408,5 +432,101 @@ private struct ExportCard: View {
             ShareSheet(items: files)
                 .presentationDetents([.medium, .large])
         }
+    }
+}
+
+/// Profile › Weight goal: where you are, the goal, progress since starting, pace and expected date.
+private struct WeightGoalCard: View {
+    @Environment(AppState.self) private var app
+    @Environment(HealthKitManager.self) private var health
+    @Query(sort: \WeightReading.timestamp) private var weights: [WeightReading]
+    @Query private var entries: [Entry]
+    @Query private var foods: [Food]
+    @Query private var meals: [Meal]
+
+    var body: some View {
+        @Bindable var app = app
+        let points = weights.map { (date: $0.timestamp, kg: $0.kg) }
+        let trend = AdaptiveEstimate.smoothedTrend(points)
+        let start = app.goalStartWeight ?? weights.first?.kg
+        let startDate = app.goalStartDate.map { DayKey.short(DayKey.date($0)) } ?? weights.first.map { DayKey.short($0.timestamp) }
+        let est = AdaptiveData.estimate(entries: entries, catalog: Catalog(foods: foods, meals: meals),
+                                        weights: weights, app: app, health: health)
+
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Weight goal").font(.manrope(17, .bold))
+                Spacer()
+                Text("from Apple Health").font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+            }
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Now (trend)").font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+                    (Text(trend.map { String(format: "%.1f", $0) } ?? "—") + Text(" kg").font(.manrope(14, .bold)).foregroundColor(Theme.muted))
+                        .bigNumber(30)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("Goal").font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+                    (Text(app.goalWeight.map { String(format: "%.1f", $0) } ?? "—") + Text(" kg").font(.manrope(14, .bold)).foregroundColor(Theme.muted))
+                        .bigNumber(30)
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+            if let goal = app.goalWeight, let start, let trend, start > goal {
+                let total = start - goal
+                let done = min(max(start - trend, 0), total)
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Theme.track)
+                        Capsule().fill(LinearGradient(colors: [Theme.accent, Theme.accent.opacity(0.75)], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: geo.size.width * done / total)
+                    }
+                }
+                .frame(height: 10)
+                HStack {
+                    Text("Started \(String(format: "%.1f", start)) kg\(startDate.map { " · \($0)" } ?? "")")
+                    Spacer()
+                    Text("\(String(format: "%.1f", done)) of \(String(format: "%.1f", total)) kg lost").fontWeight(.bold)
+                }
+                .font(.manrope(12, .medium)).foregroundStyle(Theme.muted)
+            }
+            Divider().overlay(Theme.border)
+            HStack(spacing: 10) {
+                Text("Goal weight").font(.manrope(14, .semibold))
+                Spacer()
+                if let goal = app.goalWeight {
+                    Button { app.goalWeight = max(30, goal - 0.5) } label: { Image(systemName: "minus") }
+                        .buttonStyle(CircleIconButtonStyle())
+                        .accessibilityLabel("Lower goal weight")
+                    Text("\(String(format: "%.1f", goal)) kg").font(.manrope(15, .bold)).monospacedDigit().frame(minWidth: 70)
+                    Button { app.goalWeight = goal + 0.5 } label: { Image(systemName: "plus") }
+                        .buttonStyle(CircleIconButtonStyle())
+                        .accessibilityLabel("Raise goal weight")
+                } else {
+                    Button("Set a goal") {
+                        let current = trend ?? 85
+                        app.goalWeight = ((current - 5) * 2).rounded() / 2
+                        app.goalStartWeight = current
+                        app.goalStartDate = DayKey.todayKey
+                    }
+                    .font(.manrope(14, .bold)).foregroundStyle(Theme.accent)
+                    .frame(minHeight: Theme.minTouch)
+                }
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Pace").font(.manrope(12, .semibold)).foregroundStyle(Theme.muted)
+                PillPicker(options: [(0.25, "0.25"), (0.5, "0.5 kg"), (0.75, "0.75"), (0.0, "Hold")], selection: $app.adaptivePace)
+            }
+            if let goal = app.goalWeight {
+                let date = est.goalDate(goal: goal, pace: app.adaptivePace)
+                let target = est.target(pace: app.adaptivePace)
+                Text(date.map { "On track for \(goal.clean) kg around \(DayKey.short($0))" } ?? (est.isReady ? "Set a pace to see when you'll get there" : "Your goal date appears once Sage knows your maintenance"))
+                    .font(.manrope(13, .semibold))
+                    + Text(target.map { " · target \($0.kcalString) kcal" } ?? "").font(.manrope(13, .medium))
+            }
+        }
+        .card()
+        .task { await AdaptiveData.loadWorkouts(app: app, health: health) }
     }
 }

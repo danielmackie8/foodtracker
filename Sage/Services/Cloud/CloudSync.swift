@@ -51,6 +51,7 @@ final class CloudSync {
             if state.userId != userId { state = SyncState(userId: userId) } // new account: start fresh
             try await pullAll(context: context, app: app, health: health)
             try await pushAll(context: context)
+            try await syncSettings(app: app)
             state.save()
             lastSynced = .now
             status = .idle
@@ -158,6 +159,9 @@ final class CloudSync {
         food.sourceRaw = row["source"] as? String ?? FoodSource.custom.rawValue
         food.barcode = row["barcode"] as? String
         food.servingGrams = num(row["serving_grams"])
+        food.fibre = num(row["fibre"])
+        food.sugar = num(row["sugar"])
+        food.salt = num(row["salt"])
         state.hashes[key] = Self.fingerprint(Self.row(food))
     }
 
@@ -264,12 +268,41 @@ final class CloudSync {
         }
     }
 
+    // MARK: Settings
+
+    /// Goals and preferences: newer server copy wins unless they were also changed here since the last sync.
+    private func syncSettings(app: AppState) async throws {
+        let key = "settings"
+        let data = try await request("GET", "sage_settings", query: [URLQueryItem(name: "select", value: "data,updated_at")])
+        let rows = (try JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
+        let localChanged = state.hashes[key].map { $0 != Self.fingerprint(app.settingsDocument()) } ?? false
+        if let row = rows.first, let remote = row["data"] as? [String: Any], !remote.isEmpty,
+           let updated = row["updated_at"] as? String,
+           updated != state.lastPull[key], !localChanged {
+            app.apply(settings: remote)
+            state.lastPull[key] = updated
+            state.hashes[key] = Self.fingerprint(app.settingsDocument())
+        }
+        let doc = app.settingsDocument()
+        guard Self.fingerprint(doc) != state.hashes[key] else { return }
+        let userId = auth.session?.userId ?? ""
+        let saved = try await request("POST", "sage_settings", query: [URLQueryItem(name: "on_conflict", value: "user_id")],
+                                      body: [["user_id": userId, "data": doc]],
+                                      prefer: "resolution=merge-duplicates,return=representation")
+        if let back = (try? JSONSerialization.jsonObject(with: saved) as? [[String: Any]])?.first,
+           let updated = back["updated_at"] as? String {
+            state.lastPull[key] = updated
+        }
+        state.hashes[key] = Self.fingerprint(doc)
+    }
+
     // MARK: Rows
 
     static func row(_ f: Food) -> [String: Any] {
         ["id": f.id, "name": f.name, "brand": f.brand ?? NSNull(), "pack": f.pack ?? NSNull(), "unit": f.unit,
          "per": f.per, "step": f.step, "def": f.def, "kcal": f.kcal, "p": f.p, "c": f.c, "f": f.f, "dry": f.dry,
          "source": f.sourceRaw, "barcode": f.barcode ?? NSNull(), "serving_grams": f.servingGrams ?? NSNull(),
+         "fibre": f.fibre ?? NSNull(), "sugar": f.sugar ?? NSNull(), "salt": f.salt ?? NSNull(),
          "deleted": false]
     }
 

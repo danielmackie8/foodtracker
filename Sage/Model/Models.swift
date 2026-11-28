@@ -47,6 +47,10 @@ final class Food {
     var barcode: String?
     var servingGrams: Double?
     var createdAt: Date
+    /// Optional extra nutrition, per `per` units like the rest.
+    var fibre: Double?
+    var sugar: Double?
+    var salt: Double?
 
     init(id: String, name: String, brand: String? = nil, pack: String? = nil, unit: String, per: Double, step: Double, def: Double,
          kcal: Double, p: Double, c: Double, f: Double, dry: Bool = false, source: FoodSource,
@@ -187,6 +191,13 @@ final class WeightReading {
         self.kg = kg
         self.source = source
     }
+}
+
+/// A change to the calorie goal: from `from` (YYYY-MM-DD) the goal was `kcal`; before it, `before`.
+struct GoalChange: Codable, Equatable {
+    var from: String
+    var kcal: Double
+    var before: Double
 }
 
 struct Goals: Codable, Equatable {
